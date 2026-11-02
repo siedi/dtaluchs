@@ -1,0 +1,25 @@
+# Allowlist: everything out, only what the build needs comes in. So readings, .env, dtaluchs.toml
+# and the data folder never get into the build context, not even into an intermediate stage.
+**
+!backend/pyproject.toml
+!backend/uv.lock
+!backend/.python-version
+!backend/src/**
+!frontend/**
+
+# Local output the build creates itself
+frontend/node_modules
+frontend/dist
+frontend/dist-lib
+frontend/host-example
+**/__pycache__
+**/.DS_Store
+
+# Local settings Vite would otherwise read
+**/.env*
+**/*.local
+
+# Readings never, even inside an allowed folder
+**/*.dta
+**/*.parquet
+**/*.duckdb*

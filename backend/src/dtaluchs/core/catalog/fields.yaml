@@ -1,0 +1,2892 @@
+# Feldkatalog: was die Rohfelder einer DTA-Datei bedeuten. Der Katalog ist kein Dokument des Herstellers; nicht jede
+# Angabe ist von ihm bestätigt.
+#
+# Regeln:
+# - `match` ordnet Rohnamen zu. `category` beschränkt auf eine DTA-Kategorie, `kind` auf eine Art.
+#   `analog_factor` gilt, wenn ein Feld, das eine Firmware als Enum führt, in älteren Dateien als
+#   Analogfeld steht. Der genauere Eintrag gewinnt: Kategorie und Art zählen je einmal.
+# - `factor` ersetzt den Faktor aus der Datei; ohne `factor` gilt der Dateifaktor.
+#   `layout_factors` gilt vor `factor` für Dateien, die auch das Rohfeld `present` führen, wenn
+#   eine Firmware die Skala ändert und den Dateifaktor lässt. Die erste passende Regel gewinnt.
+# - `label` nennt die Größe in Alltagssprache, Grundlage ist der Erklärtext des Handbuchs, formuliert wird
+#   selbst. Ohne `label` zeigt die Oberfläche den Rohnamen. `abbr` ist das Kürzel aus der Abkürzungsliste des
+#   Handbuchs (S. 70 und 71), nur wenn dessen Erklärung genau dieses Feld beschreibt.
+# - `groups` gibt jeder Gruppe einen Text. `id` ist, was `group` am Eintrag nennt, benannt nach einer Kategorie
+#   im Kopf der DTA-Datei; ein Eintrag kann aus einer anderen Kategorie stammen (Pumpen aus `Grundplatine EA`
+#   in `Heizkreis`). Das Schema prüft, dass jede Gruppe eines Eintrags hier steht. Rohfelder ohne Eintrag
+#   behalten ihre Kategorie als Gruppe.
+# - `plausible`: Bereich, gegen den ein Test jeden Wert prüft; Pflicht für jeden Faktor und jeden
+#   Messwert mit Einheit.
+# - `no_value`: ein Wert, der „kein Wert“ heißt, nach Faktor oder Tabelle, wie er gelesen wird (nicht der Rohwert,
+#   der vom Faktor des Layouts abhängt). Nur bei einem analogen Feld. Wo Werte gelesen werden, ist er NULL; in den
+#   Partitionen bleibt der Rohwert.
+# - `unsigned: true`: der Rohwert ist ein Zähler mit 16 Bit, den die Datei als int16 schreibt; ein negativer Rohwert
+#   zählt vor dem Faktor 65.536 dazu (Python `unsigned_raw`, SQL `value_sql`). Nur bei einem analogen Feld.
+# - `run_bit`: ID eines Eintrags der Art bit. Der Zähler beginnt mit jedem Lauf dieses Bits bei 0 und springt nach 65.535 s
+#   auf 0; wo Werte gelesen werden, steht der Wert über den Lauf, in den Partitionen der Rohwert. Nur bei einem
+#   analogen Feld mit `unsigned`; das Schema prüft, dass die ID ein Bit ist.
+#   Ändert den Fingerabdruck des Katalogs nicht, es wirkt erst beim Lesen. `plausible` eines solchen Felds gilt für den
+#   Rohwert ohne Vorzeichen, also vor der Korrektur über den Lauf: der Plausibilitätstest liest die Sätze einer DTA-Datei
+#   je Satz, ohne Lauf. Der gelesene Wert darf über `plausible.max` liegen.
+# - `options`: bei einem Enum die Übersetzung der Kopftexte aus der DTA-Datei, Kopftext → Deutsch und Englisch, `''` für
+#   einen leeren Kopftext. `de` und `en` beide `null` heißt: dieser Kopftext hat keinen Text (die Ziffern 0 und 4 von
+#   bivalence_stage). Ein Kopftext ohne Eintrag wird unübersetzt gezeigt.
+#   `codes`: Liste Code → Kopftext für Layouts, deren Datei keine Liste führt (das Feld ist dort analog).
+#   Beide ändern den Fingerabdruck des Katalogs nicht, sie wirken erst beim Lesen.
+# - `unknown`: Rohfelder, deren Bedeutung offen ist. Sie werden mit Rohnamen und Dateifaktor
+#   angezeigt, nie verworfen.
+# - IDs sind stabil. Eine ID wird nie umgedeutet; ein neuer Sinn bekommt eine neue ID.
+
+version: 1
+groups:
+- id: Anlagenstatus
+  label:
+    de: Anlagenstatus
+    en: system status
+- id: ChD_Kae_Kreis
+  label:
+    de: Kältekreis
+    en: refrigerant circuit
+- id: Heizkreis
+  label:
+    de: Heizkreis
+    en: heating circuit
+- id: Inverter
+  label:
+    de: Inverter
+    en: inverter
+- id: LA_HeatSource
+  label:
+    de: Wärmequelle
+    en: heat source
+- id: LPC
+  label:
+    de: Leistungsbegrenzung
+    en: power limitation
+fields:
+- id: defrost_end_temp
+  kind: analog
+  group: Anlagenstatus
+  match:
+  - name: AbtEndTemp
+  label:
+    de: Zieltemperatur Abtauende
+    en: defrost end target temperature
+  description:
+    de: Temperatur im Verdampfer, bei der die Abtauung endet.
+    en: Evaporator temperature at which defrosting ends.
+  unit: °C
+  plausible:
+    min: 0
+    max: 60
+- id: controller_share_d
+  kind: analog
+  group: Anlagenstatus
+  match:
+  - name: Anteil D
+- id: controller_share_i
+  kind: analog
+  group: Anlagenstatus
+  match:
+  - name: Anteil I
+- id: controller_share_p
+  kind: analog
+  group: Anlagenstatus
+  match:
+  - name: Anteil P
+- id: operating_state
+  kind: enum
+  group: Anlagenstatus
+  match:
+  - name: Betr_Zust
+  label:
+    de: Betriebszustand
+    en: operating state
+  description:
+    de: Was die Anlage gerade tut.
+    en: What the system is doing right now.
+  options:
+    Heizen:
+      de: Heizen
+      en: heating
+    BW:
+      de: Warmwasser
+      en: hot water
+    SWB:
+      de: Schwimmbad
+      en: swimming pool
+    EVU:
+      de: EVU-Sperre
+      en: utility lock
+    ABT:
+      de: Abtauen
+      en: defrosting
+    '':
+      de: keine Anforderung
+      en: no request
+    Ext_Energ:
+      de: Externe Energiequelle
+      en: external energy source
+    Kuhl:
+      de: Kühlung
+      en: cooling
+  codes: [Heizen, BW, SWB, EVU, ABT, '', Ext_Energ, Kuhl]
+- id: bivalence_stage
+  kind: enum
+  group: Anlagenstatus
+  match:
+  - name: Biv_Sufe
+    analog_factor: 100
+  - name: Bivalence
+    analog_factor: 100
+  label:
+    de: Bivalenzstufe
+    en: bivalence stage
+  description:
+    de: '1: ein Verdichter darf laufen, 2: zwei Verdichter, 3: dazu der zusätzliche Wärmeerzeuger.'
+    en: '1: one compressor may run, 2: two compressors, 3: also the additional heat generator.'
+  abbr: Biv.-Stufe
+  plausible:
+    min: 0
+    max: 10
+  options:
+    '0':
+      de: null
+      en: null
+    '1':
+      de: ein Verdichter darf laufen
+      en: one compressor may run
+    '2':
+      de: zwei Verdichter dürfen laufen
+      en: two compressors may run
+    '3':
+      de: zusätzlicher Wärmeerzeuger darf mitlaufen
+      en: additional heat generator may run
+    '4':
+      de: null
+      en: null
+  codes: ['0', '1', '2', '3', '4']
+- id: defrost_demand
+  kind: analog
+  group: Anlagenstatus
+  match:
+  - name: Defrost_Demand
+  label:
+    de: Abtaubedarf
+    en: defrost demand
+  unit: '%'
+  plausible:
+    min: 0
+    max: 100
+- id: dhw_boost_state
+  kind: enum
+  group: Anlagenstatus
+  match:
+  - name: DhwBoost status
+- id: error_memory
+  kind: analog
+  group: Anlagenstatus
+  match:
+  - name: Fehlerspeicher
+  label:
+    de: Fehlercode
+    en: error code
+  description:
+    de: Fehlernummer wie in der Fehlerliste des Handbuchs.
+    en: Error number as in the error list of the manual.
+- id: aux_heater_release
+  kind: analog
+  group: Anlagenstatus
+  match:
+  - name: FreigZWE
+  factor: 1
+  label:
+    de: Freigabezeit zusätzlicher Wärmeerzeuger, Heizen
+    en: release time additional heat generator, heating
+  unit: s
+  plausible:
+    min: 0
+    max: 3600
+- id: aux_heater_release_dhw
+  kind: analog
+  group: Anlagenstatus
+  match:
+  - name: FreigZWE_WW
+  factor: 1
+  label:
+    de: Freigabezeit zusätzlicher Wärmeerzeuger, Warmwasser
+    en: release time additional heat generator, hot water
+  unit: s
+  plausible:
+    min: 0
+    max: 3600
+- id: hot_gas_excess_level
+  kind: analog
+  group: Anlagenstatus
+  match:
+  - name: HotGasExcessLevel
+  label:
+    de: Überschreitung Heißgastemperatur
+    en: hot gas temperature excess
+- id: capacity
+  kind: analog
+  group: Anlagenstatus
+  match:
+  - name: Kapazitat
+  factor: 100
+  label:
+    de: Heizleistung laut Steuerung (Kennfeld)
+    en: heat output per controller (performance map)
+  description:
+    de: Heizleistung, die die Steuerung meldet; verhält sich wie ein Wert aus einem Kennfeld, nicht wie
+      eine Messung am Heizwasser
+    en: heat output reported by the controller; behaves like a value from a performance map, not like
+      a measurement on the heating water
+  unit: kW
+  plausible:
+    min: -20
+    max: 20
+- id: compressor_stop_reason
+  kind: enum
+  group: Anlagenstatus
+  match:
+  - name: LA_VDStop
+    analog_factor: 1
+  label:
+    de: Abschaltgrund Verdichter
+    en: compressor stop reason
+  description:
+    de: Welche Nummer welchen Grund meint, steht nicht im Handbuch.
+    en: Which number means which reason is not in the manual.
+  plausible:
+    min: 0
+    max: 50
+- id: lin_qos_hz_io
+  kind: analog
+  group: Anlagenstatus
+  match:
+  - name: LIN QoS - HZ/IO
+  label:
+    de: LIN-Bus QoS, HZ/IO
+    en: LIN bus QoS, HZ/IO
+- id: lin_qos_wp_io
+  kind: analog
+  group: Anlagenstatus
+  match:
+  - name: LIN QoS - WP/IO
+  label:
+    de: LIN-Bus QoS, WP/IO
+    en: LIN bus QoS, WP/IO
+- id: power_consumption
+  kind: analog
+  group: Anlagenstatus
+  match:
+  - name: PowerConsumption
+  label:
+    de: Elektrische Leistungsaufnahme
+    en: electrical power consumption
+  layout_factors:
+  - present: git short hash 0
+    factor: 100
+  unit: kW
+  plausible:
+    min: 0
+    max: 10
+- id: software_revision
+  kind: analog
+  group: Anlagenstatus
+  match:
+  - name: SW Revision
+  label:
+    de: Software-Revision
+    en: software revision
+- id: software_version
+  kind: analog
+  group: Anlagenstatus
+  match:
+  - name: SW_Stand
+  label:
+    de: Softwarestand
+    en: software version
+  description:
+    de: 3923 steht für Version 3.92.3.
+    en: 3923 stands for version 3.92.3.
+  abbr: SW-Stand
+- id: compressor_shutdown_timer
+  kind: analog
+  group: Anlagenstatus
+  match:
+  - name: ShutdownComprTimer
+  label:
+    de: Abschalt-Timer Verdichter
+    en: compressor shutdown timer
+  unit: s
+  plausible:
+    min: 0
+    max: 300
+- id: heating_controller_signal
+  kind: enum
+  group: Anlagenstatus
+  match:
+  - name: Signal_HZRegler
+    analog_factor: 100
+  label:
+    de: Signal Heizungsregler
+    en: heating controller signal
+  description:
+    de: Neutral, mehr oder weniger; welcher Code was bedeutet, ist offen.
+    en: Neutral, more or less; which code means what is open.
+  plausible:
+    min: 0
+    max: 10
+- id: smart_grid_state
+  kind: analog
+  group: Anlagenstatus
+  match:
+  - name: SmartGrid
+    kind: analog
+  label:
+    de: Smart-Grid-Zustand
+    en: smart grid state
+  description:
+    de: Aus den Kontakten EVU und EVU 2 gebildet. 1 heißt EVU-Sperre; was 2 bis 4 heißen, hängt von der
+      Smart-Grid-Einstellung ab.
+    en: Formed from the contacts EVU and EVU 2. 1 means utility lock; what 2 to 4 mean depends on the
+      smart grid setting.
+- id: timer_bivalence_more
+  kind: analog
+  group: Anlagenstatus
+  match:
+  - name: Timer_BIV_mehr
+  factor: 1
+  unit: s
+  plausible:
+    min: 0
+    max: 65535
+  unsigned: true
+- id: timer_compressor_runtime
+  kind: analog
+  group: Anlagenstatus
+  match:
+  - name: Timer_VD1_Laufz
+  factor: 1
+  label:
+    de: Laufzeit des laufenden Verdichterlaufs
+    en: runtime of the current compressor run
+  unit: s
+  plausible:
+    min: 0
+    max: 65535
+  unsigned: true
+  run_bit: compressor_1
+- id: heat_pump_type
+  kind: analog
+  group: Anlagenstatus
+  match:
+  - name: WP_Typ
+  label:
+    de: Wärmepumpentyp
+    en: heat pump type
+  description:
+    de: Typ als Codezahl der Steuerung.
+    en: Type as the controller's code number.
+  abbr: WP-Typ
+- id: access_level
+  kind: analog
+  group: Anlagenstatus
+  match:
+  - name: Zugang
+  label:
+    de: Zugangsberechtigung
+    en: access level
+  description:
+    de: Stufe des Datenzugangs, etwa Benutzer, Installateur oder Kundendienst.
+    en: Level of data access, such as user, installer or service.
+- id: git_hash_0
+  kind: analog
+  group: Anlagenstatus
+  match:
+  - name: git short hash 0
+  label:
+    de: Firmware-Kennung, Teil 1
+    en: firmware hash, part 1
+  description:
+    de: Zwei Zeichen der Git-Kennung der Firmware, als Zahl abgelegt.
+    en: Two characters of the firmware's git hash, stored as a number.
+- id: git_hash_1
+  kind: analog
+  group: Anlagenstatus
+  match:
+  - name: git short hash 1
+  label:
+    de: Firmware-Kennung, Teil 2
+    en: firmware hash, part 2
+  description:
+    de: Zwei Zeichen der Git-Kennung der Firmware, als Zahl abgelegt.
+    en: Two characters of the firmware's git hash, stored as a number.
+- id: git_hash_2
+  kind: analog
+  group: Anlagenstatus
+  match:
+  - name: git short hash 2
+  label:
+    de: Firmware-Kennung, Teil 3
+    en: firmware hash, part 3
+  description:
+    de: Zwei Zeichen der Git-Kennung der Firmware, als Zahl abgelegt.
+    en: Two characters of the firmware's git hash, stored as a number.
+- id: git_hash_3
+  kind: analog
+  group: Anlagenstatus
+  match:
+  - name: git short hash 3
+  label:
+    de: Firmware-Kennung, Teil 4
+    en: firmware hash, part 4
+  description:
+    de: Zwei Zeichen der Git-Kennung der Firmware, als Zahl abgelegt.
+    en: Two characters of the firmware's git hash, stored as a number.
+- id: evu_ready
+  kind: bit
+  group: Anlagenstatus
+  match:
+  - name: EVU_ready
+- id: cooling_switchover
+  kind: bit
+  group: Anlagenstatus
+  match:
+  - name: Kuehl_umschaltung
+- id: mains_on_ready
+  kind: bit
+  group: Anlagenstatus
+  match:
+  - name: Netzein_ready
+- id: switching_cycle_lock
+  kind: bit
+  group: Anlagenstatus
+  match:
+  - name: SSP_Zeit
+  label:
+    de: Taktsperre
+    en: switching cycle lock
+  abbr: SSP
+- id: signal_ban
+  kind: bit
+  group: Anlagenstatus
+  match:
+  - name: Signal_BAN
+- id: signal_bivalence_reduction
+  kind: bit
+  group: Anlagenstatus
+  match:
+  - name: Signal_BivRed
+- id: signal_cooling_clearance
+  kind: bit
+  group: Anlagenstatus
+  match:
+  - name: Signal_CoolingClearance
+  label:
+    de: Freigabe Kühlung
+    en: cooling release
+- id: signal_han
+  kind: bit
+  group: Anlagenstatus
+  match:
+  - name: Signal_HAN
+- id: signal_swan
+  kind: bit
+  group: Anlagenstatus
+  match:
+  - name: Signal_SWAN
+- id: silent_mode
+  kind: bit
+  group: Anlagenstatus
+  match:
+  - name: Silent Mode
+  label:
+    de: Leiser Betrieb (Silent Mode)
+    en: silent mode
+  description:
+    de: Verdichter und Ventilator laufen gedrosselt, um Geräusch zu sparen. Nur bei einigen Luft/Wasser-Wärmepumpen.
+    en: Compressor and fan run throttled to reduce noise. Only on some air/water heat pumps.
+- id: forced_dhw
+  kind: bit
+  group: Anlagenstatus
+  match:
+  - name: Zwangsbrauchwasser
+  label:
+    de: Zwangsbetrieb Warmwasser
+    en: forced hot water
+- id: forced_heating
+  kind: bit
+  group: Anlagenstatus
+  match:
+  - name: Zwangsheizung
+  label:
+    de: Zwangsbetrieb Heizen
+    en: forced heating
+  abbr: ZH
+- id: cooling_clearance_rev
+  kind: bit
+  group: Anlagenstatus
+  match:
+  - name: coolingClearance_Rev.
+  label:
+    de: Freigabe Kühlung (reversibel)
+    en: cooling release (reversible)
+- id: evaporator_suction_temp
+  kind: analog
+  group: ChD_Kae_Kreis
+  match:
+  - name: Ansaug_Verdampfer
+  - name: Ansaug Verdampfer
+  label:
+    de: Ansaugtemperatur Verdampfer
+    en: suction temperature, evaporator
+  abbr: Ans Kon
+  unit: °C
+  plausible:
+    min: -20
+    max: 60
+- id: compressor_suction_temp
+  kind: analog
+  group: ChD_Kae_Kreis
+  match:
+  - name: Ansaug_Verdichter
+  - name: Ansaug VD
+  label:
+    de: Ansaugtemperatur Verdichter
+    en: suction temperature, compressor
+  abbr: Ans VD
+  unit: °C
+  plausible:
+    min: -30
+    max: 90
+- id: eevh_tfl1
+  kind: analog
+  group: ChD_Kae_Kreis
+  match:
+  - name: EEVH TFL1
+  label:
+    de: Kältemittel vor dem Expansionsventil (Heizen)
+    en: refrigerant before expansion valve (heating)
+  description:
+    de: Temperatur des flüssigen Kältemittels.
+    en: Temperature of the liquid refrigerant.
+  abbr: TFL 1
+  unit: °C
+  plausible:
+    min: -30
+    max: 80
+- id: eev_heating
+  kind: analog
+  group: ChD_Kae_Kreis
+  match:
+  - name: EEV_Heizen
+  label:
+    de: Öffnung Expansionsventil (Heizen)
+    en: expansion valve opening (heating)
+  abbr: EEVH
+- id: eev_opening
+  kind: analog
+  group: ChD_Kae_Kreis
+  match:
+  - name: EEV_opening
+  label:
+    de: Öffnung Expansionsventil
+    en: expansion valve opening
+- id: high_pressure
+  kind: analog
+  group: ChD_Kae_Kreis
+  match:
+  - name: HD
+  - name: Druck HD
+  label:
+    de: Hochdruck Kältekreis
+    en: high pressure, refrigerant circuit
+  factor: 100
+  description:
+    de: Überdruck gegenüber der Umgebung
+    en: gauge pressure
+  unit: bar
+  plausible:
+    min: 0
+    max: 40
+- id: hot_gas_temp
+  kind: analog
+  group: ChD_Kae_Kreis
+  match:
+  - name: Heissgas
+  - name: THG
+  label:
+    de: Heißgastemperatur
+    en: hot gas temperature
+  abbr: THG
+  unit: °C
+  plausible:
+    min: 0
+    max: 110
+- id: compressor_demand
+  kind: analog
+  group: ChD_Kae_Kreis
+  match:
+  - name: LA_VD_Soll
+  label:
+    de: Verdichter Soll (Signal)
+    en: compressor target (signal)
+  description:
+    de: Verläuft praktisch wie „Verdichter“.
+    en: Runs practically like “compressor”.
+- id: speed_limit_case
+  kind: enum
+  group: ChD_Kae_Kreis
+  match:
+  - name: Limit Speed Cases
+  label:
+    de: Drehzahlbegrenzung Verdichter, Fall
+    en: compressor speed limit, case
+- id: low_pressure
+  kind: analog
+  group: ChD_Kae_Kreis
+  match:
+  - name: ND
+  - name: Druck ND
+  label:
+    de: Niederdruck Kältekreis
+    en: low pressure, refrigerant circuit
+  factor: 100
+  description:
+    de: Überdruck gegenüber der Umgebung
+    en: gauge pressure
+  unit: bar
+  plausible:
+    min: -10
+    max: 20
+- id: compressor_active_signal
+  kind: analog
+  group: ChD_Kae_Kreis
+  match:
+  - name: Signal_VD_aktiv
+  label:
+    de: Verdichter aktiv (Signal)
+    en: compressor active (signal)
+  description:
+    de: Verläuft praktisch wie „Verdichter“.
+    en: Runs practically like “compressor”.
+- id: subcooling_main_valve
+  kind: analog
+  group: ChD_Kae_Kreis
+  match:
+  - name: UK_Hauptventil
+  label:
+    de: Unterkühlung am Expansionsventil
+    en: subcooling at expansion valve
+  description:
+    de: Von der Steuerung errechnet.
+    en: Calculated by the controller.
+- id: superheat
+  kind: analog
+  group: ChD_Kae_Kreis
+  match:
+  - name: Ueberhitzung
+  label:
+    de: Überhitzung
+    en: superheat
+  unit: K
+  plausible:
+    min: -30
+    max: 80
+- id: superheat_target
+  kind: analog
+  group: ChD_Kae_Kreis
+  match:
+  - name: Ueberhitzung_Soll
+  - name: Ueberhitzung Soll
+  label:
+    de: Überhitzung Soll
+    en: superheat target
+  unit: K
+  plausible:
+    min: 0
+    max: 80
+- id: compressor_heating_target
+  kind: analog
+  group: ChD_Kae_Kreis
+  match:
+  - name: VD-Heizung Soll
+  label:
+    de: Solltemperatur Verdichterheizung
+    en: compressor heater target temperature
+- id: compressor_heating_temp
+  kind: analog
+  group: ChD_Kae_Kreis
+  match:
+  - name: VD_Heizung
+  - name: VDHZ
+  - name: Temp VDH
+  label:
+    de: Temperatur Verdichterheizung
+    en: compressor heater temperature
+  abbr: TVD
+- id: evaporation_temp
+  kind: analog
+  group: ChD_Kae_Kreis
+  match:
+  - name: Verdampfungstemp
+  - name: Verdampfungstemp.
+  label:
+    de: Verdampfungstemperatur
+    en: evaporation temperature
+  unit: °C
+  plausible:
+    min: -50
+    max: 40
+- id: condensation_temp
+  kind: analog
+  group: ChD_Kae_Kreis
+  match:
+  - name: Verfluessigungstemp
+  - name: Verfluessigungstemp.
+  label:
+    de: Verflüssigungstemperatur
+    en: condensing temperature
+  unit: °C
+  plausible:
+    min: -20
+    max: 80
+- id: defrost_valve
+  kind: bit
+  group: ChD_Kae_Kreis
+  match:
+  - name: Abtauventil
+  - name: AVout
+  label:
+    de: Abtauventil
+    en: defrost valve
+  description:
+    de: 'Ein: Abtauen, der Kältekreis läuft umgekehrt.'
+    en: 'On: defrosting, the refrigerant circuit runs in reverse.'
+  abbr: AV
+- id: defrost_request
+  kind: bit
+  group: ChD_Kae_Kreis
+  match:
+  - name: Abtauwunsch
+  label:
+    de: Abtauung angefordert
+    en: defrost requested
+- id: signal_defrost
+  kind: bit
+  group: ChD_Kae_Kreis
+  match:
+  - name: Signal_ABT
+  label:
+    de: Abtauung (Signal)
+    en: defrost (signal)
+  description:
+    de: Verläuft praktisch wie „Abtauventil“.
+    en: Runs practically like “defrost valve”.
+- id: compressor_heater
+  kind: bit
+  group: ChD_Kae_Kreis
+  match:
+  - name: VD_Heizung
+  - name: VDHZ
+  - name: Temp VDH
+  label:
+    de: Verdichterheizung
+    en: compressor heater
+  abbr: VDHZ
+- id: compressor_1
+  kind: bit
+  group: ChD_Kae_Kreis
+  match:
+  - name: Verdichter
+  - name: VD1out
+  label:
+    de: Verdichter
+    en: compressor
+  description:
+    de: Bei zwei Verdichtern der erste.
+    en: With two compressors, the first one.
+  abbr: VD
+- id: compressor_2
+  kind: bit
+  group: ChD_Kae_Kreis
+  match:
+  - name: Verdichter 2
+  - name: VD2out
+  label:
+    de: Verdichter 2
+    en: compressor 2
+  abbr: VD
+- id: flow_rate
+  kind: analog
+  group: Heizkreis
+  match:
+  - name: ABS_DFS
+  - name: Durchfluss
+  - name: DFS
+  factor: 1
+  label:
+    de: Durchfluss Heizkreis
+    en: flow rate, heating circuit
+  description:
+    de: Durchfluss im Heizkreis, wie ihn die Steuerung führt; Grundlage der Wärme aus Durchfluss und Spreizung
+    en: flow in the heating circuit as the controller records it; basis of the heat from flow and spread
+  abbr: DFS
+  unit: l/h
+  plausible:
+    min: 0
+    max: 4000
+- id: analog_out_1
+  kind: analog
+  group: Heizkreis
+  match:
+  - name: AO 1
+  - name: AnalogOut_1
+  label:
+    de: Analogausgang 1
+    en: analog output 1
+  description:
+    de: Zum Beispiel Stromversorgung eines Durchflusssensors.
+    en: For example the power supply of a flow sensor.
+  abbr: AO
+- id: analog_out_2
+  kind: analog
+  group: Heizkreis
+  match:
+  - name: AO 2
+  - name: AnalogOut_2
+  label:
+    de: Analogausgang 2
+    en: analog output 2
+  description:
+    de: Zum Beispiel Stromversorgung eines Durchflusssensors.
+    en: For example the power supply of a flow sensor.
+  abbr: AO
+- id: outdoor_temp
+  kind: analog
+  group: Heizkreis
+  match:
+  - name: Aussent
+  - name: TA
+  label:
+    de: Außentemperatur
+    en: outdoor temperature
+  abbr: TA
+  unit: °C
+  plausible:
+    min: -20
+    max: 50
+- id: dhw_pump_state
+  kind: enum
+  group: Heizkreis
+  match:
+  - name: BUP State
+- id: dhw_temp
+  kind: analog
+  group: Heizkreis
+  match:
+  - name: BW_Ist
+  - name: TBW
+  label:
+    de: Warmwassertemperatur
+    en: hot water temperature
+  description:
+    de: Ist-Temperatur im Warmwasserspeicher.
+    en: Actual temperature in the hot water tank.
+  abbr: TBW
+  unit: °C
+  plausible:
+    min: 10
+    max: 80
+- id: dhw_target
+  kind: analog
+  group: Heizkreis
+  match:
+  - name: BW_Soll
+  - name: TBW_Soll
+  label:
+    de: Warmwasser-Solltemperatur
+    en: hot water target temperature
+  abbr: WW-Soll
+  unit: °C
+  plausible:
+    min: 20
+    max: 60
+- id: flow_rate_target
+  kind: analog
+  group: Heizkreis
+  match:
+  - name: LA_DFS_Soll
+  label:
+    de: Durchfluss Soll
+    en: flow rate target
+  unit: l/h
+  factor: 1
+  plausible:
+    min: 0
+    max: 2000
+- id: mixing_circuit_1_target
+  kind: analog
+  group: Heizkreis
+  match:
+  - name: Sollwert_TVL_MK1
+  - name: MK1VL_Soll
+  - name: MK1-Soll
+  label:
+    de: Vorlauf-Solltemperatur Mischkreis 1
+    en: flow target temperature, mixing circuit 1
+  abbr: MK-VL-Soll
+  unit: °C
+  plausible:
+    min: 0
+    max: 50
+- id: mixing_circuit_1_temp
+  kind: analog
+  group: Heizkreis
+  match:
+  - name: MK1_Vorlauf
+  - name: TFB1
+  label:
+    de: Vorlauftemperatur Mischkreis 1
+    en: flow temperature, mixing circuit 1
+  abbr: MK-Vorl
+  unit: °C
+  plausible:
+    min: -30
+    max: 80
+- id: outdoor_mean_temp
+  kind: analog
+  group: Heizkreis
+  match:
+  - name: Mitteltemperatur
+  label:
+    de: Außentemperatur, Mittel über 24 h
+    en: outdoor temperature, 24 h mean
+  description:
+    de: Grundlage der Heizgrenze.
+    en: Basis of the heating limit.
+  unit: °C
+  plausible:
+    min: -20
+    max: 40
+- id: heating_pump_pwm
+  kind: analog
+  group: Heizkreis
+  match:
+  - name: PWM_UWP
+  - name: PWM HUP
+  - name: PWM 2
+  label:
+    de: Leistung Umwälzpumpe
+    en: circulation pump output
+  description:
+    de: Steuersignal in Prozent (PWM). Die Pumpe läuft, solange Verdichter oder zusätzlicher Wärmeerzeuger
+      laufen, beim Heizen wie beim Warmwasser. Nicht der Ausgang HUP.
+    en: Control signal in percent (PWM). The pump runs while the compressor or the additional heat generator
+      runs, for heating as for hot water. Not the HUP output.
+  abbr: PWM
+  unit: '%'
+  plausible:
+    min: 0
+    max: 100
+- id: heating_pump_2_pwm
+  kind: analog
+  group: Heizkreis
+  match:
+  - name: PWM_UWP 2
+  label:
+    de: Leistung Umwälzpumpe 2
+    en: circulation pump 2 output
+  unit: '%'
+  plausible:
+    min: 0
+    max: 100
+- id: return_target
+  kind: analog
+  group: Heizkreis
+  match:
+  - name: Sollwert_TRL_HZ
+  - name: RL_Soll
+    category: Heizkreis
+  - name: TRL_soll
+  label:
+    de: Rücklauf-Solltemperatur Heizkreis
+    en: return target temperature, heating circuit
+  abbr: RL-Soll
+  unit: °C
+  plausible:
+    min: -50
+    max: 80
+- id: return_temp
+  kind: analog
+  group: Heizkreis
+  match:
+  - name: Rucklauf
+  - name: TRL
+  label:
+    de: Rücklauftemperatur Heizkreis
+    en: return temperature, heating circuit
+  abbr: TRL
+  unit: °C
+  plausible:
+    min: 10
+    max: 80
+- id: return_ext_temp
+  kind: analog
+  group: Heizkreis
+  match:
+  - name: Ruecklext
+  - name: TRL_ext
+  label:
+    de: Rücklauftemperatur Trennspeicher
+    en: return temperature, buffer tank
+  description:
+    de: Gemessen am externen Rücklauffühler im Trennspeicher.
+    en: Measured by the external return sensor in the buffer tank.
+  abbr: TRLext
+  unit: °C
+  plausible:
+    min: -30
+    max: 80
+- id: flow_target
+  kind: analog
+  group: Heizkreis
+  match:
+  - name: VL_Soll
+  label:
+    de: Vorlauf-Solltemperatur Heizkreis
+    en: flow target temperature, heating circuit
+  unit: °C
+  plausible:
+    min: 0
+    max: 70
+- id: flow_temp
+  kind: analog
+  group: Heizkreis
+  match:
+  - name: Vorlauf
+  - name: TVL
+  label:
+    de: Vorlauftemperatur Heizkreis
+    en: flow temperature, heating circuit
+  abbr: TVL
+  unit: °C
+  plausible:
+    min: 0
+    max: 80
+- id: flow_max
+  kind: analog
+  group: Heizkreis
+  match:
+  - name: Vorlaufmax
+  label:
+    de: Maximale Vorlauftemperatur
+    en: maximum flow temperature
+  unit: °C
+  plausible:
+    min: 60
+    max: 70
+- id: defrost_brine_flow_switch
+  kind: bit
+  group: Heizkreis
+  match:
+  - name: ASD
+  - name: ASDin
+  label:
+    de: Abtauende, Soledruck oder Durchfluss
+    en: defrost end, brine pressure or flow
+  description:
+    de: 'Je nach Gerät. Luft/Wasser: ein, wenn die Abtauung endet. Mit Durchflussschalter: ein, wenn der
+      Durchfluss reicht. Mit Soledruckschalter: ein, wenn der Soledruck reicht.'
+    en: 'Depends on the unit. Air/water: on when defrosting ends. With flow switch: on when the flow is
+      sufficient. With brine pressure switch: on when the brine pressure is sufficient.'
+  abbr: ASD
+- id: dhw_charge_pump
+  kind: bit
+  group: Heizkreis
+  match:
+  - name: BLP
+  label:
+    de: Warmwasser-Ladepumpe
+    en: hot water charging pump
+  abbr: BLP
+- id: dhw_pump
+  kind: bit
+  group: Heizkreis
+  match:
+  - name: BUP
+  - name: BUPout
+    category: Grundplatine EA
+  label:
+    de: Warmwasserladung
+    en: hot water charging
+  description:
+    de: 'Ein: Die Wärmepumpe lädt Warmwasser.'
+    en: 'On: the heat pump charges hot water.'
+  abbr: BUP
+- id: evu_lock
+  kind: bit
+  group: Heizkreis
+  match:
+  - name: EVU
+  - name: EVU 1
+  - name: EVUin
+  label:
+    de: EVU-Signal
+    en: utility signal
+  description:
+    de: 'Sperrzeit des Stromversorgers. Laut Handbuch heißt aus: gesperrt.'
+    en: Lock period of the power utility. According to the manual, off means locked.
+  abbr: EVU
+- id: evu_lock_2
+  kind: bit
+  group: Heizkreis
+  match:
+  - name: EVU 2
+  label:
+    de: Zweites EVU-Signal (Smart Grid)
+    en: second utility signal (smart grid)
+- id: mixing_pump_1
+  kind: bit
+  group: Heizkreis
+  match:
+  - name: FUP1
+  - name: FP1out
+  label:
+    de: Pumpe Mischkreis 1 / Kühlsignal 1
+    en: pump mixing circuit 1 / cooling signal 1
+  abbr: FUP
+- id: heating_pump
+  kind: bit
+  group: Heizkreis
+  match:
+  - name: HUP
+  - name: HUPout
+    category: Grundplatine EA
+  label:
+    de: Heizungspumpe
+    en: heating pump
+  description:
+    de: Pumpe zum Heizkreis. Ob sie beim Warmwasser mitläuft, ist einstellbar.
+    en: Pump to the heating circuit. Whether it also runs for hot water is a setting.
+  abbr: HUP
+- id: ks
+  kind: bit
+  group: Heizkreis
+  match:
+  - name: KS
+  label:
+    de: Kühlsignal
+    en: cooling signal
+  description:
+    de: Ein, solange die Kühlung freigegeben ist.
+    en: On while cooling is released.
+  abbr: KS
+- id: motor_protection
+  kind: bit
+  group: Heizkreis
+  match:
+  - name: MOT
+  - name: MOTin
+  label:
+    de: Motorschutz
+    en: motor protection
+  description:
+    de: 'Ein: in Ordnung.'
+    en: 'On: OK.'
+  abbr: MOT
+- id: mixer_1_open
+  kind: bit
+  group: Heizkreis
+  match:
+  - name: Mischer1Auf
+  - name: MA1out
+  label:
+    de: Mischer 1 fährt auf
+    en: mixer 1 opening
+  abbr: MA
+- id: mixer_1_close
+  kind: bit
+  group: Heizkreis
+  match:
+  - name: Mischer1Zu
+  - name: MZ1out
+  label:
+    de: Mischer 1 fährt zu
+    en: mixer 1 closing
+  abbr: MZ
+- id: pex
+  kind: bit
+  group: Heizkreis
+  match:
+  - name: PEX
+- id: disinfection_thermostat
+  kind: bit
+  group: Heizkreis
+  match:
+  - name: Therm_Desinfekt
+  label:
+    de: Thermische Desinfektion (Signal)
+    en: thermal disinfection (signal)
+- id: circulation_pump
+  kind: bit
+  group: Heizkreis
+  match:
+  - name: ZIP
+  - name: ZIPout
+    category: Grundplatine EA
+  label:
+    de: Zirkulationspumpe
+    en: hot water circulation pump
+  abbr: ZIP
+- id: additional_pump
+  kind: bit
+  group: Heizkreis
+  match:
+  - name: ZUP
+  - name: ZUPout
+    category: Grundplatine EA
+  label:
+    de: Zusatzpumpe
+    en: additional pump
+  abbr: ZUP
+- id: aux_heater_1
+  kind: bit
+  group: Heizkreis
+  match:
+  - name: ZWE1
+  - name: ZW1out
+  label:
+    de: Zusätzlicher Wärmeerzeuger 1
+    en: additional heat generator 1
+  abbr: ZWE
+- id: aux_heater_2_fault
+  kind: bit
+  group: Heizkreis
+  match:
+  - name: ZWE2_SST
+  - name: ZW2SSTout
+  label:
+    de: Zusätzlicher Wärmeerzeuger 2 / Sammelstörung
+    en: additional heat generator 2 / collective fault
+  description:
+    de: 'Als Sammelstörung: dauernd ein bei Störung, blinkt im Sekundentakt bei automatischem Neustart.'
+    en: 'As collective fault: on continuously during a fault, flashes once per second on automatic restart.'
+  abbr: SST
+- id: inverter_current_out_limit
+  kind: analog
+  group: Inverter
+  match:
+  - name: CurrentOutLimit
+  label:
+    de: Inverter, Grenze Ausgangsstrom
+    en: inverter, output current limit
+- id: inverter_drive_state
+  kind: analog
+  group: Inverter
+  match:
+  - name: Drivestate
+  label:
+    de: Inverter, Antriebszustand
+    en: inverter, drive state
+- id: inverter_envelope
+  kind: analog
+  group: Inverter
+  match:
+  - name: Envelope Nr
+- id: inverter_pcb_temp
+  kind: analog
+  group: Inverter
+  match:
+  - name: LA_PCB_Temp
+  label:
+    de: Inverter, Temperatur Platine
+    en: inverter, board temperature
+- id: compressor_current
+  kind: analog
+  group: Inverter
+  match:
+  - name: Motor1CurrentOut
+  label:
+    de: Strom Verdichtermotor
+    en: compressor motor current
+- id: compressor_power
+  kind: analog
+  group: Inverter
+  match:
+  - name: Motor1PowerOut
+  label:
+    de: Elektrische Leistung Verdichter
+    en: electrical power, compressor
+  unit: kW
+  plausible:
+    min: 0
+    max: 10
+- id: inverter_pfc_temp
+  kind: analog
+  group: Inverter
+  match:
+  - name: PFC Temp
+  label:
+    de: Inverter, Temperatur PFC
+    en: inverter, PFC temperature
+- id: inverter_pm_temp
+  kind: analog
+  group: Inverter
+  match:
+  - name: PM Temp
+  label:
+    de: Inverter, Temperatur PM
+    en: inverter, PM temperature
+- id: inverter_pfc_current_limit
+  kind: analog
+  group: Inverter
+  match:
+  - name: PfcCurrentInputLimit
+  label:
+    de: Inverter, Grenze PFC-Eingangsstrom
+    en: inverter, PFC input current limit
+- id: inverter_pfc_current
+  kind: analog
+  group: Inverter
+  match:
+  - name: PfcInputCurrent
+  label:
+    de: Inverter, PFC-Eingangsstrom
+    en: inverter, PFC input current
+- id: inverter_power_out_limit
+  kind: analog
+  group: Inverter
+  match:
+  - name: PowerOutLimit
+  label:
+    de: Inverter, Grenze Ausgangsleistung
+    en: inverter, output power limit
+- id: compressor_speed
+  kind: analog
+  group: Inverter
+  match:
+  - name: VD_RPM Aktuell
+  label:
+    de: Verdichterdrehzahl
+    en: compressor speed
+  unit: Hz
+  plausible:
+    min: 0
+    max: 70
+- id: compressor_speed_max
+  kind: analog
+  group: Inverter
+  match:
+  - name: VD_RPM Max
+  label:
+    de: Verdichterdrehzahl Maximum
+    en: compressor speed maximum
+  unit: Hz
+  plausible:
+    min: 10
+    max: 80
+- id: compressor_speed_min
+  kind: analog
+  group: Inverter
+  match:
+  - name: VD_RPM Min
+  label:
+    de: Verdichterdrehzahl Minimum
+    en: compressor speed minimum
+  unit: Hz
+  plausible:
+    min: 0
+    max: 30
+- id: compressor_speed_target
+  kind: analog
+  group: Inverter
+  match:
+  - name: VD_RPM Sollwert
+  label:
+    de: Verdichterdrehzahl Soll
+    en: compressor speed target
+  unit: Hz
+  plausible:
+    min: 0
+    max: 70
+- id: source_out_temp
+  kind: analog
+  group: LA_HeatSource
+  match:
+  - name: Kaltekreis
+  - name: TWA
+  label:
+    de: Austrittstemperatur Wärmequelle
+    en: heat source outlet temperature
+  abbr: TWA
+  unit: °C
+  plausible:
+    min: -50
+    max: 30
+  no_value: -50.0
+- id: fan_voltage
+  kind: analog
+  group: LA_HeatSource
+  match:
+  - name: LA_FanVoltage
+  label:
+    de: Spannung Ventilator
+    en: fan voltage
+- id: source_in_temp
+  kind: analog
+  group: LA_HeatSource
+  match:
+  - name: WQ_Ein
+  - name: TWE
+  label:
+    de: Eintrittstemperatur Wärmequelle
+    en: heat source inlet temperature
+  abbr: TWE
+  unit: °C
+  plausible:
+    min: -20
+    max: 50
+- id: fan_or_source_pump
+  kind: bit
+  group: LA_HeatSource
+  match:
+  - name: Ventil_BOSUP
+  - name: VBOout
+    category: Grundplatine EA
+  label:
+    de: Ventilator oder Wärmequellenpumpe
+    en: fan or heat source pump
+  description:
+    de: Je nach Gerät der Ventilator oder die Brunnen- oder Solepumpe.
+    en: Depending on the unit, the fan or the well or brine pump.
+  abbr: VBO
+- id: lpc_brake_h
+  kind: analog
+  group: LPC
+  match:
+  - name: Brake H
+- id: lpc_brake_l
+  kind: analog
+  group: LPC
+  match:
+  - name: Brake L
+- id: lpc_brake_release
+  kind: analog
+  group: LPC
+  match:
+  - name: Brake Release
+- id: lpc_compressor_state
+  kind: enum
+  group: LPC
+  match:
+  - name: Compressor LPC-State
+  label:
+    de: Leistungsbegrenzung, Zustand Verdichter
+    en: power limitation, compressor state
+  description:
+    de: Nicht begrenzt, reduziert oder blockiert.
+    en: Not limited, reduced or blocked.
+- id: lpc_dhw_demand
+  kind: enum
+  group: LPC
+  match:
+  - name: Dhw demand
+    analog_factor: 1
+  label:
+    de: Leistungsbegrenzung, Warmwasserbedarf
+    en: power limitation, hot water demand
+  plausible:
+    min: 0
+    max: 10
+- id: lpc_dhw_demand_border
+  kind: analog
+  group: LPC
+  match:
+  - name: Dhw demand border
+  label:
+    de: Leistungsbegrenzung, Grenze Warmwasserbedarf
+    en: power limitation, hot water demand border
+- id: lpc_heat_demand_border
+  kind: analog
+  group: LPC
+  match:
+  - name: Heat demand border
+  label:
+    de: Leistungsbegrenzung, Grenze Heizbedarf
+    en: power limitation, heating demand border
+- id: lpc_heating_demand
+  kind: enum
+  group: LPC
+  match:
+  - name: Heating demand
+    analog_factor: 1
+  label:
+    de: Leistungsbegrenzung, Heizbedarf
+    en: power limitation, heating demand
+  plausible:
+    min: 0
+    max: 10
+- id: lpc_module_state
+  kind: enum
+  group: LPC
+  match:
+  - name: LPC Module State
+  label:
+    de: Leistungsbegrenzung, Zustand
+    en: power limitation, state
+  description:
+    de: Zustand der Regelung; welcher Code was bedeutet, ist offen.
+    en: State of the control; which code means what is open.
+- id: lpc_max_compressor_speed
+  kind: analog
+  group: LPC
+  match:
+  - name: Max Compr. Speed
+  label:
+    de: Leistungsbegrenzung, höchste Verdichterdrehzahl
+    en: power limitation, maximum compressor speed
+  description:
+    de: Vorhergesagte Drehzahl, bei der die Anlage das Leistungslimit einhält.
+    en: Predicted speed at which the system keeps the power limit.
+- id: lpc_power_limit_evu_sg
+  kind: analog
+  group: LPC
+  match:
+  - name: Max Power Consumption Limit - EVU/SG
+  label:
+    de: Leistungslimit bei EVU-Signal oder Smart Grid
+    en: power limit for utility signal or smart grid
+  description:
+    de: Höchster Strombezug von Verdichter und Heizstäben zusammen, solange das EVU begrenzt.
+    en: Maximum power draw of compressor and heating rods together while the utility restricts power draw.
+  unit: kW
+  plausible:
+    min: 0
+    max: 30
+- id: lpc_power_limit_shi
+  kind: analog
+  group: LPC
+  match:
+  - name: Max Power Consumption Limit - SHI
+  label:
+    de: Leistungslimit über Smart Home Interface
+    en: power limit via smart home interface
+- id: lpc_power_consumption
+  kind: analog
+  group: LPC
+  match:
+  - name: Power Consumption
+  label:
+    de: Leistungsbegrenzung, Leistungsaufnahme
+    en: power limitation, power consumption
+- id: lpc_sec_target_power_current
+  kind: analog
+  group: LPC
+  match:
+  - name: SEC Targetpower Cur
+- id: lpc_sec_target_power_final
+  kind: analog
+  group: LPC
+  match:
+  - name: SEC Targetpower Final
+- id: lpc_start_power
+  kind: analog
+  group: LPC
+  match:
+  - name: Start Power Consumption
+  label:
+    de: Leistungsbegrenzung, Leistungsaufnahme beim Start
+    en: power limitation, start power consumption
+- id: lpc_system_demand
+  kind: enum
+  group: LPC
+  match:
+  - name: System demand
+    analog_factor: 1
+  label:
+    de: Leistungsbegrenzung, Systembedarf
+    en: power limitation, system demand
+  plausible:
+    min: 0
+    max: 10
+- id: lpc_zwe1_state
+  kind: enum
+  group: LPC
+  match:
+  - name: ZWE1 LPC-State
+  label:
+    de: Leistungsbegrenzung, Zustand zusätzlicher Wärmeerzeuger 1
+    en: power limitation, state of additional heat generator 1
+  description:
+    de: Nicht begrenzt, reduziert oder blockiert.
+    en: Not limited, reduced or blocked.
+- id: lpc_zwe2_state
+  kind: enum
+  group: LPC
+  match:
+  - name: ZWE2 LPC-State
+  label:
+    de: Leistungsbegrenzung, Zustand zusätzlicher Wärmeerzeuger 2
+    en: power limitation, state of additional heat generator 2
+  description:
+    de: Nicht begrenzt, reduziert oder blockiert.
+    en: Not limited, reduced or blocked.
+unknown:
+- kind: analog
+  category: ASB
+  name: EEV % Cooling
+- kind: analog
+  category: ASB
+  name: EEV % Heating
+- kind: analog
+  category: ASB
+  name: EEVC TFL2
+- kind: analog
+  category: ASB
+  name: 'Highpressure '
+- kind: analog
+  category: ASB
+  name: Kondensationstemp.
+- kind: analog
+  category: ASB
+  name: 'Lowpressure  '
+- kind: analog
+  category: ASB
+  name: Superheat-Error RMS
+- kind: analog
+  category: ASB
+  name: Superheat-Is
+- kind: analog
+  category: ASB
+  name: Superheat-Setpoint
+- kind: analog
+  category: ASB
+  name: THG Grenze
+- kind: analog
+  category: ASB
+  name: TSG1
+- kind: analog
+  category: ASB
+  name: UnterkÃ¼hlung EEV
+- kind: analog
+  category: ChD_Kae_Kreis
+  name: THGmax
+- kind: bit
+  category: ChD_Kae_Kreis EA
+  name: HD
+- kind: bit
+  category: ChD_Kae_Kreis EA
+  name: IN 3
+- kind: analog
+  category: Fan
+  name: Fan speed-Is
+- kind: analog
+  category: Fan
+  name: 'Fan speed-Setpoint '
+- kind: analog
+  category: GLT
+  name: AT
+- kind: enum
+  category: GLT
+  name: AnzahlVD
+- kind: enum
+  category: GLT
+  name: Betriebsart Brauchwasser
+- kind: enum
+  category: GLT
+  name: Betriebsart Heizen
+- kind: enum
+  category: GLT
+  name: Betriebsart Kuehlen
+- kind: enum
+  category: GLT
+  name: Betriebsart Lueftung
+- kind: enum
+  category: GLT
+  name: Betriebsart MK2
+- kind: enum
+  category: GLT
+  name: Betriebsart MK3
+- kind: enum
+  category: GLT
+  name: Betriebsart Schwimmbad
+- kind: analog
+  category: GLT
+  name: Einst BWS akt
+- kind: analog
+  category: GLT
+  name: MK1 Soll
+- kind: analog
+  category: GLT
+  name: MK2 Soll
+- kind: analog
+  category: GLT
+  name: MK3 Soll
+- kind: analog
+  category: GLT
+  name: RL_Soll
+- kind: bit
+  category: GLT EA
+  name: BUPout
+- kind: bit
+  category: GLT EA
+  name: FP2out
+- kind: bit
+  category: GLT EA
+  name: FP3out
+- kind: bit
+  category: GLT EA
+  name: Fehlerreset Datenlog
+- kind: bit
+  category: GLT EA
+  name: HUPout
+- kind: bit
+  category: GLT EA
+  name: OUT FRH
+- kind: bit
+  category: GLT EA
+  name: OUT VSK
+- kind: bit
+  category: GLT EA
+  name: SLPout
+- kind: bit
+  category: GLT EA
+  name: SUPout
+- kind: bit
+  category: GLT EA
+  name: VBOout
+- kind: bit
+  category: GLT EA
+  name: VENout
+- kind: bit
+  category: GLT EA
+  name: ZIPout
+- kind: bit
+  category: GLT EA
+  name: ZUPout
+- kind: analog
+  category: Grundplatine
+  name: AO 3
+- kind: analog
+  category: Grundplatine
+  name: AO 4
+- kind: analog
+  category: Grundplatine
+  name: BW_oben
+- kind: analog
+  category: Grundplatine
+  name: Demand
+- kind: analog
+  category: Grundplatine
+  name: Error ID
+- kind: analog
+  category: Grundplatine
+  name: Freq_VD
+- kind: analog
+  category: Grundplatine
+  name: HZ RT ist
+- kind: analog
+  category: Grundplatine
+  name: HZ RT soll
+- kind: analog
+  category: Grundplatine
+  name: HZ drive count
+- kind: analog
+  category: Grundplatine
+  name: HZ floor count
+- kind: analog
+  category: Grundplatine
+  name: HZ floor open
+- kind: analog
+  category: Grundplatine
+  name: Hz.Max
+- kind: analog
+  category: Grundplatine
+  name: Hz.Min
+- kind: analog
+  category: Grundplatine
+  name: MK1 RT ist
+- kind: analog
+  category: Grundplatine
+  name: MK1 RT soll
+- kind: analog
+  category: Grundplatine
+  name: MK1 drive count
+- kind: analog
+  category: Grundplatine
+  name: MK1 floor count
+- kind: analog
+  category: Grundplatine
+  name: MK1 floor open
+- kind: analog
+  category: Grundplatine
+  name: MK1.Max
+- kind: analog
+  category: Grundplatine
+  name: MK1.Min
+- kind: analog
+  category: Grundplatine
+  name: MK2 RT ist
+- kind: analog
+  category: Grundplatine
+  name: MK2 RT soll
+- kind: analog
+  category: Grundplatine
+  name: MK2 drive count
+- kind: analog
+  category: Grundplatine
+  name: MK2 floor count
+- kind: analog
+  category: Grundplatine
+  name: MK2 floor open
+- kind: analog
+  category: Grundplatine
+  name: MK2.Max
+- kind: analog
+  category: Grundplatine
+  name: MK2.Min
+- kind: analog
+  category: Grundplatine
+  name: MK3 RT ist
+- kind: analog
+  category: Grundplatine
+  name: MK3 RT soll
+- kind: analog
+  category: Grundplatine
+  name: MK3 drive count
+- kind: analog
+  category: Grundplatine
+  name: MK3 floor count
+- kind: analog
+  category: Grundplatine
+  name: MK3 floor open
+- kind: analog
+  category: Grundplatine
+  name: MK3.Max
+- kind: analog
+  category: Grundplatine
+  name: MK3.Min
+- kind: analog
+  category: Grundplatine
+  name: Multi1
+- kind: analog
+  category: Grundplatine
+  name: Multi2
+- kind: analog
+  category: Grundplatine
+  name: PWM VBO
+- kind: analog
+  category: Grundplatine
+  name: Schrittmotor
+- kind: analog
+  category: Grundplatine
+  name: Spr. HUP/ZUP
+- kind: analog
+  category: Grundplatine
+  name: Spr. HUP/ZUP Soll
+- kind: analog
+  category: Grundplatine
+  name: Spr. VBO
+- kind: analog
+  category: Grundplatine
+  name: Spr. VBO Soll
+- kind: analog
+  category: Grundplatine
+  name: WMZ Bw
+- kind: analog
+  category: Grundplatine
+  name: WMZ Hz
+- kind: analog
+  category: Grundplatine
+  name: WMZ Sw
+- kind: bit
+  category: Grundplatine EA
+  name: HDin
+- kind: bit
+  category: Grundplatine EA
+  name: IN 7
+- kind: bit
+  category: Grundplatine EA
+  name: MOT VD
+- kind: bit
+  category: Grundplatine EA
+  name: NDin
+- kind: bit
+  category: Grundplatine EA
+  name: OUT 7
+- kind: bit
+  category: Grundplatine EA
+  name: OUT 8
+- kind: bit
+  category: Grundplatine EA
+  name: OUT 9
+- kind: bit
+  category: Grundplatine EA
+  name: VENout
+- kind: analog
+  category: HMI
+  name: AbtZaehler
+- kind: analog
+  category: HMI
+  name: AbtZaehlerZiel
+- kind: analog
+  category: HMI
+  name: Abtaubedarf [%]
+- kind: analog
+  category: HMI
+  name: Error ID
+- kind: analog
+  category: HMI
+  name: Waermeleistung
+- kind: analog
+  category: HZ I/O
+  name: DFS Soll
+- kind: analog
+  category: HZ I/O
+  name: Demand
+- kind: analog
+  category: HZ I/O
+  name: PWM 1
+- kind: analog
+  category: HZ I/O
+  name: VD Stop
+- kind: bit
+  category: HZ I/O EA
+  name: BUPout
+- kind: bit
+  category: HZ I/O EA
+  name: HUPout
+- kind: bit
+  category: HZ I/O EA
+  name: Signal_VD_aktiv
+- kind: bit
+  category: HZ I/O EA
+  name: VBOout
+- kind: bit
+  category: HZ I/O EA
+  name: ZIPout
+- kind: bit
+  category: HZ I/O EA
+  name: ZUPout
+- kind: analog
+  category: Heizkreis
+  name: AO 21
+- kind: analog
+  category: Heizkreis
+  name: AO 22
+- kind: analog
+  category: Heizkreis
+  name: AnalogIn 21
+- kind: analog
+  category: Heizkreis
+  name: AnalogIn 22
+- kind: analog
+  category: Heizkreis
+  name: BW_oben
+- kind: analog
+  category: Heizkreis
+  name: Ext_Energ
+- kind: analog
+  category: Heizkreis
+  name: MK2VL_Soll
+- kind: analog
+  category: Heizkreis
+  name: MK2_Vorlauf
+- kind: analog
+  category: Heizkreis
+  name: MK3VL_Soll
+- kind: analog
+  category: Heizkreis
+  name: MK3_Vorlauf
+- kind: analog
+  category: Heizkreis
+  name: Multi1
+- kind: analog
+  category: Heizkreis
+  name: Multi2
+- kind: analog
+  category: Heizkreis
+  name: Solarkoll
+- kind: analog
+  category: Heizkreis
+  name: Solarsp
+- kind: analog
+  category: Heizkreis
+  name: Spr. HUP/ZUP Soll
+- kind: analog
+  category: Heizkreis
+  name: Spr. VBO Soll
+- kind: bit
+  category: Heizkreis EA
+  name: FUP2
+- kind: bit
+  category: Heizkreis EA
+  name: FUP3
+- kind: bit
+  category: Heizkreis EA
+  name: Mischer2Auf
+- kind: bit
+  category: Heizkreis EA
+  name: Mischer2Zu
+- kind: bit
+  category: Heizkreis EA
+  name: Mischer3Auf
+- kind: bit
+  category: Heizkreis EA
+  name: Mischer3Zu
+- kind: bit
+  category: Heizkreis EA
+  name: OUT 7
+- kind: bit
+  category: Heizkreis EA
+  name: OUT 8
+- kind: bit
+  category: Heizkreis EA
+  name: OUT 9
+- kind: bit
+  category: Heizkreis EA
+  name: SLP
+- kind: bit
+  category: Heizkreis EA
+  name: STB_EStab
+- kind: bit
+  category: Heizkreis EA
+  name: SUP
+- kind: bit
+  category: Heizkreis EA
+  name: SWT
+- kind: bit
+  category: Heizkreis EA
+  name: ZWE3
+- kind: analog
+  category: Inverter
+  name: CurrentInLimit
+- kind: analog
+  category: Inverter
+  name: Fault 1
+- kind: analog
+  category: Inverter
+  name: Fault 2
+- kind: analog
+  category: Inverter
+  name: Max. Speed
+- kind: analog
+  category: Inverter
+  name: Min. Speed
+- kind: analog
+  category: Inverter
+  name: PCB Temp
+- kind: analog
+  category: Inverter
+  name: Speed
+- kind: analog
+  category: Inverter
+  name: Speed Setpoint
+- kind: analog
+  category: Inverter
+  name: Sperrband_Start
+- kind: analog
+  category: Inverter
+  name: Sperrband_Stop
+- kind: analog
+  category: Inverter
+  name: Stepped Speed
+- kind: analog
+  category: Inverter
+  name: pfcCurrentInput
+- kind: analog
+  category: LA_HeatSource
+  name: PWM Ventil_BOSUP
+- kind: analog
+  category: LA_LIN
+  name: Schrittmotor Ist
+- kind: analog
+  category: LA_LIN
+  name: Temp TWE
+- kind: bit
+  category: LA_LIN EA
+  name: LIN_Abtauwunsch
+- kind: bit
+  category: LA_LIN EA
+  name: LIN_Verdichter2_IN
+- kind: bit
+  category: LA_LIN EA
+  name: LIN_Verdichter_IN
+- kind: bit
+  category: LA_LIN EA
+  name: LIN_Verdichterheizung_OUT
+- kind: analog
+  category: RBE
+  name: RBE Einfluss
+- kind: analog
+  category: RBE
+  name: RBE WW Soll extra
+- kind: analog
+  category: RBE
+  name: RT Ist
+- kind: analog
+  category: RBE
+  name: RT Soll
+- kind: bit
+  category: RBE EA
+  name: Start Kuhlung
+- kind: analog
+  category: Sim_Compact_Platine
+  name: AIn 2
+- kind: analog
+  category: Sim_Compact_Platine
+  name: AIn 3
+- kind: analog
+  category: Sim_Compact_Platine
+  name: AO 3
+- kind: analog
+  category: Sim_Compact_Platine
+  name: AO 4
+- kind: analog
+  category: Sim_Compact_Platine
+  name: TAB
+- kind: analog
+  category: Sim_Compact_Platine
+  name: TZU
+- kind: analog
+  category: Sim_Compact_Platine
+  name: VAB
+- kind: analog
+  category: Sim_Compact_Platine
+  name: VZU
+- kind: bit
+  category: Sim_Compact_Platine EA
+  name: IN_SAX
+- kind: bit
+  category: Sim_Compact_Platine EA
+  name: OUT_FRH
+- kind: bit
+  category: Sim_Compact_Platine EA
+  name: OUT_VSK
+- kind: bit
+  category: Sim_Compact_Platine EA
+  name: SPLin
+- kind: analog
+  category: Sim_Confort_Platine
+  name: AO 21
+- kind: analog
+  category: Sim_Confort_Platine
+  name: AO 22
+- kind: analog
+  category: Sim_Confort_Platine
+  name: AnalogIn
+- kind: analog
+  category: Sim_Confort_Platine
+  name: AnalogIn 21
+- kind: analog
+  category: Sim_Confort_Platine
+  name: AnalogIn 22
+- kind: analog
+  category: Sim_Confort_Platine
+  name: AnalogOut 21
+- kind: analog
+  category: Sim_Confort_Platine
+  name: AnalogOut 22
+- kind: analog
+  category: Sim_Confort_Platine
+  name: MK2-Soll
+- kind: analog
+  category: Sim_Confort_Platine
+  name: MK3-Soll
+- kind: analog
+  category: Sim_Confort_Platine
+  name: TEE
+- kind: analog
+  category: Sim_Confort_Platine
+  name: TFB 2
+- kind: analog
+  category: Sim_Confort_Platine
+  name: TFB 3
+- kind: analog
+  category: Sim_Confort_Platine
+  name: TSK
+- kind: analog
+  category: Sim_Confort_Platine
+  name: TSS
+- kind: bit
+  category: Sim_Confort_Platine EA
+  name: FP2out
+- kind: bit
+  category: Sim_Confort_Platine EA
+  name: FP3out
+- kind: bit
+  category: Sim_Confort_Platine EA
+  name: MA2out
+- kind: bit
+  category: Sim_Confort_Platine EA
+  name: MA3out
+- kind: bit
+  category: Sim_Confort_Platine EA
+  name: MZ2out
+- kind: bit
+  category: Sim_Confort_Platine EA
+  name: MZ3out
+- kind: bit
+  category: Sim_Confort_Platine EA
+  name: SLPout
+- kind: bit
+  category: Sim_Confort_Platine EA
+  name: SUPout
+- kind: bit
+  category: Sim_Confort_Platine EA
+  name: SWTin
+- kind: bit
+  category: Sim_Confort_Platine EA
+  name: ZW3SSTout
+- kind: analog
+  category: Smart
+  name: Hz RT ist
+- kind: analog
+  category: Smart
+  name: Hz RT soll
+- kind: analog
+  category: Smart
+  name: Hz drive count
+- kind: analog
+  category: Smart
+  name: Hz floor count
+- kind: analog
+  category: Smart
+  name: Hz floor open
+- kind: analog
+  category: Smart
+  name: Hz.Max
+- kind: analog
+  category: Smart
+  name: Hz.Min
+- kind: analog
+  category: Smart
+  name: MK1 RT ist
+- kind: analog
+  category: Smart
+  name: MK1 RT soll
+- kind: analog
+  category: Smart
+  name: MK1 drive count
+- kind: analog
+  category: Smart
+  name: MK1 floor count
+- kind: analog
+  category: Smart
+  name: MK1 floor open
+- kind: analog
+  category: Smart
+  name: MK1.Max
+- kind: analog
+  category: Smart
+  name: MK1.Min
+- kind: analog
+  category: Smart
+  name: MK2 RT ist
+- kind: analog
+  category: Smart
+  name: MK2 RT soll
+- kind: analog
+  category: Smart
+  name: MK2 drive count
+- kind: analog
+  category: Smart
+  name: MK2 floor count
+- kind: analog
+  category: Smart
+  name: MK2 floor open
+- kind: analog
+  category: Smart
+  name: MK2.Max
+- kind: analog
+  category: Smart
+  name: MK2.Min
+- kind: analog
+  category: Smart
+  name: MK3 RT ist
+- kind: analog
+  category: Smart
+  name: MK3 RT soll
+- kind: analog
+  category: Smart
+  name: MK3 drive count
+- kind: analog
+  category: Smart
+  name: MK3 floor count
+- kind: analog
+  category: Smart
+  name: MK3 floor open
+- kind: analog
+  category: Smart
+  name: MK3.Max
+- kind: analog
+  category: Smart
+  name: MK3.Min
+- kind: enum
+  category: Smart
+  name: Room 1 Cool ID
+- kind: enum
+  category: Smart
+  name: Room 1 CoolConf
+- kind: analog
+  category: Smart
+  name: Room 1 CurTemp
+- kind: enum
+  category: Smart
+  name: Room 1 Heat ID
+- kind: enum
+  category: Smart
+  name: Room 1 HeatConf
+- kind: analog
+  category: Smart
+  name: Room 1 ReqTemp
+- kind: analog
+  category: Smart
+  name: Room 1 TarTemp
+- kind: enum
+  category: Smart
+  name: Room 10 Cool ID
+- kind: enum
+  category: Smart
+  name: Room 10 CoolConf
+- kind: analog
+  category: Smart
+  name: Room 10 CurTemp
+- kind: enum
+  category: Smart
+  name: Room 10 Heat ID
+- kind: enum
+  category: Smart
+  name: Room 10 HeatConf
+- kind: analog
+  category: Smart
+  name: Room 10 ReqTemp
+- kind: analog
+  category: Smart
+  name: Room 10 TarTemp
+- kind: enum
+  category: Smart
+  name: Room 11 Cool ID
+- kind: enum
+  category: Smart
+  name: Room 11 CoolConf
+- kind: analog
+  category: Smart
+  name: Room 11 CurTemp
+- kind: enum
+  category: Smart
+  name: Room 11 Heat ID
+- kind: enum
+  category: Smart
+  name: Room 11 HeatConf
+- kind: analog
+  category: Smart
+  name: Room 11 ReqTemp
+- kind: analog
+  category: Smart
+  name: Room 11 TarTemp
+- kind: enum
+  category: Smart
+  name: Room 12 Cool ID
+- kind: enum
+  category: Smart
+  name: Room 12 CoolConf
+- kind: analog
+  category: Smart
+  name: Room 12 CurTemp
+- kind: enum
+  category: Smart
+  name: Room 12 Heat ID
+- kind: enum
+  category: Smart
+  name: Room 12 HeatConf
+- kind: analog
+  category: Smart
+  name: Room 12 ReqTemp
+- kind: analog
+  category: Smart
+  name: Room 12 TarTemp
+- kind: enum
+  category: Smart
+  name: Room 13 Cool ID
+- kind: enum
+  category: Smart
+  name: Room 13 CoolConf
+- kind: analog
+  category: Smart
+  name: Room 13 CurTemp
+- kind: enum
+  category: Smart
+  name: Room 13 Heat ID
+- kind: enum
+  category: Smart
+  name: Room 13 HeatConf
+- kind: analog
+  category: Smart
+  name: Room 13 ReqTemp
+- kind: analog
+  category: Smart
+  name: Room 13 TarTemp
+- kind: enum
+  category: Smart
+  name: Room 14 Cool ID
+- kind: enum
+  category: Smart
+  name: Room 14 CoolConf
+- kind: analog
+  category: Smart
+  name: Room 14 CurTemp
+- kind: enum
+  category: Smart
+  name: Room 14 Heat ID
+- kind: enum
+  category: Smart
+  name: Room 14 HeatConf
+- kind: analog
+  category: Smart
+  name: Room 14 ReqTemp
+- kind: analog
+  category: Smart
+  name: Room 14 TarTemp
+- kind: enum
+  category: Smart
+  name: Room 15 Cool ID
+- kind: enum
+  category: Smart
+  name: Room 15 CoolConf
+- kind: analog
+  category: Smart
+  name: Room 15 CurTemp
+- kind: enum
+  category: Smart
+  name: Room 15 Heat ID
+- kind: enum
+  category: Smart
+  name: Room 15 HeatConf
+- kind: analog
+  category: Smart
+  name: Room 15 ReqTemp
+- kind: analog
+  category: Smart
+  name: Room 15 TarTemp
+- kind: enum
+  category: Smart
+  name: Room 16 Cool ID
+- kind: enum
+  category: Smart
+  name: Room 16 CoolConf
+- kind: analog
+  category: Smart
+  name: Room 16 CurTemp
+- kind: enum
+  category: Smart
+  name: Room 16 Heat ID
+- kind: enum
+  category: Smart
+  name: Room 16 HeatConf
+- kind: analog
+  category: Smart
+  name: Room 16 ReqTemp
+- kind: analog
+  category: Smart
+  name: Room 16 TarTemp
+- kind: enum
+  category: Smart
+  name: Room 17 Cool ID
+- kind: enum
+  category: Smart
+  name: Room 17 CoolConf
+- kind: analog
+  category: Smart
+  name: Room 17 CurTemp
+- kind: enum
+  category: Smart
+  name: Room 17 Heat ID
+- kind: enum
+  category: Smart
+  name: Room 17 HeatConf
+- kind: analog
+  category: Smart
+  name: Room 17 ReqTemp
+- kind: analog
+  category: Smart
+  name: Room 17 TarTemp
+- kind: enum
+  category: Smart
+  name: Room 18 Cool ID
+- kind: enum
+  category: Smart
+  name: Room 18 CoolConf
+- kind: analog
+  category: Smart
+  name: Room 18 CurTemp
+- kind: enum
+  category: Smart
+  name: Room 18 Heat ID
+- kind: enum
+  category: Smart
+  name: Room 18 HeatConf
+- kind: analog
+  category: Smart
+  name: Room 18 ReqTemp
+- kind: analog
+  category: Smart
+  name: Room 18 TarTemp
+- kind: enum
+  category: Smart
+  name: Room 19 Cool ID
+- kind: enum
+  category: Smart
+  name: Room 19 CoolConf
+- kind: analog
+  category: Smart
+  name: Room 19 CurTemp
+- kind: enum
+  category: Smart
+  name: Room 19 Heat ID
+- kind: enum
+  category: Smart
+  name: Room 19 HeatConf
+- kind: analog
+  category: Smart
+  name: Room 19 ReqTemp
+- kind: analog
+  category: Smart
+  name: Room 19 TarTemp
+- kind: enum
+  category: Smart
+  name: Room 2 Cool ID
+- kind: enum
+  category: Smart
+  name: Room 2 CoolConf
+- kind: analog
+  category: Smart
+  name: Room 2 CurTemp
+- kind: enum
+  category: Smart
+  name: Room 2 Heat ID
+- kind: enum
+  category: Smart
+  name: Room 2 HeatConf
+- kind: analog
+  category: Smart
+  name: Room 2 ReqTemp
+- kind: analog
+  category: Smart
+  name: Room 2 TarTemp
+- kind: enum
+  category: Smart
+  name: Room 20 Cool ID
+- kind: enum
+  category: Smart
+  name: Room 20 CoolConf
+- kind: analog
+  category: Smart
+  name: Room 20 CurTemp
+- kind: enum
+  category: Smart
+  name: Room 20 Heat ID
+- kind: enum
+  category: Smart
+  name: Room 20 HeatConf
+- kind: analog
+  category: Smart
+  name: Room 20 ReqTemp
+- kind: analog
+  category: Smart
+  name: Room 20 TarTemp
+- kind: enum
+  category: Smart
+  name: Room 21 Cool ID
+- kind: enum
+  category: Smart
+  name: Room 21 CoolConf
+- kind: analog
+  category: Smart
+  name: Room 21 CurTemp
+- kind: enum
+  category: Smart
+  name: Room 21 Heat ID
+- kind: enum
+  category: Smart
+  name: Room 21 HeatConf
+- kind: analog
+  category: Smart
+  name: Room 21 ReqTemp
+- kind: analog
+  category: Smart
+  name: Room 21 TarTemp
+- kind: enum
+  category: Smart
+  name: Room 22 Cool ID
+- kind: enum
+  category: Smart
+  name: Room 22 CoolConf
+- kind: analog
+  category: Smart
+  name: Room 22 CurTemp
+- kind: enum
+  category: Smart
+  name: Room 22 Heat ID
+- kind: enum
+  category: Smart
+  name: Room 22 HeatConf
+- kind: analog
+  category: Smart
+  name: Room 22 ReqTemp
+- kind: analog
+  category: Smart
+  name: Room 22 TarTemp
+- kind: enum
+  category: Smart
+  name: Room 23 Cool ID
+- kind: enum
+  category: Smart
+  name: Room 23 CoolConf
+- kind: analog
+  category: Smart
+  name: Room 23 CurTemp
+- kind: enum
+  category: Smart
+  name: Room 23 Heat ID
+- kind: enum
+  category: Smart
+  name: Room 23 HeatConf
+- kind: analog
+  category: Smart
+  name: Room 23 ReqTemp
+- kind: analog
+  category: Smart
+  name: Room 23 TarTemp
+- kind: enum
+  category: Smart
+  name: Room 24 Cool ID
+- kind: enum
+  category: Smart
+  name: Room 24 CoolConf
+- kind: analog
+  category: Smart
+  name: Room 24 CurTemp
+- kind: enum
+  category: Smart
+  name: Room 24 Heat ID
+- kind: enum
+  category: Smart
+  name: Room 24 HeatConf
+- kind: analog
+  category: Smart
+  name: Room 24 ReqTemp
+- kind: analog
+  category: Smart
+  name: Room 24 TarTemp
+- kind: enum
+  category: Smart
+  name: Room 3 Cool ID
+- kind: enum
+  category: Smart
+  name: Room 3 CoolConf
+- kind: analog
+  category: Smart
+  name: Room 3 CurTemp
+- kind: enum
+  category: Smart
+  name: Room 3 Heat ID
+- kind: enum
+  category: Smart
+  name: Room 3 HeatConf
+- kind: analog
+  category: Smart
+  name: Room 3 ReqTemp
+- kind: analog
+  category: Smart
+  name: Room 3 TarTemp
+- kind: enum
+  category: Smart
+  name: Room 4 Cool ID
+- kind: enum
+  category: Smart
+  name: Room 4 CoolConf
+- kind: analog
+  category: Smart
+  name: Room 4 CurTemp
+- kind: enum
+  category: Smart
+  name: Room 4 Heat ID
+- kind: enum
+  category: Smart
+  name: Room 4 HeatConf
+- kind: analog
+  category: Smart
+  name: Room 4 ReqTemp
+- kind: analog
+  category: Smart
+  name: Room 4 TarTemp
+- kind: enum
+  category: Smart
+  name: Room 5 Cool ID
+- kind: enum
+  category: Smart
+  name: Room 5 CoolConf
+- kind: analog
+  category: Smart
+  name: Room 5 CurTemp
+- kind: enum
+  category: Smart
+  name: Room 5 Heat ID
+- kind: enum
+  category: Smart
+  name: Room 5 HeatConf
+- kind: analog
+  category: Smart
+  name: Room 5 ReqTemp
+- kind: analog
+  category: Smart
+  name: Room 5 TarTemp
+- kind: enum
+  category: Smart
+  name: Room 6 Cool ID
+- kind: enum
+  category: Smart
+  name: Room 6 CoolConf
+- kind: analog
+  category: Smart
+  name: Room 6 CurTemp
+- kind: enum
+  category: Smart
+  name: Room 6 Heat ID
+- kind: enum
+  category: Smart
+  name: Room 6 HeatConf
+- kind: analog
+  category: Smart
+  name: Room 6 ReqTemp
+- kind: analog
+  category: Smart
+  name: Room 6 TarTemp
+- kind: enum
+  category: Smart
+  name: Room 7 Cool ID
+- kind: enum
+  category: Smart
+  name: Room 7 CoolConf
+- kind: analog
+  category: Smart
+  name: Room 7 CurTemp
+- kind: enum
+  category: Smart
+  name: Room 7 Heat ID
+- kind: enum
+  category: Smart
+  name: Room 7 HeatConf
+- kind: analog
+  category: Smart
+  name: Room 7 ReqTemp
+- kind: analog
+  category: Smart
+  name: Room 7 TarTemp
+- kind: enum
+  category: Smart
+  name: Room 8 Cool ID
+- kind: enum
+  category: Smart
+  name: Room 8 CoolConf
+- kind: analog
+  category: Smart
+  name: Room 8 CurTemp
+- kind: enum
+  category: Smart
+  name: Room 8 Heat ID
+- kind: enum
+  category: Smart
+  name: Room 8 HeatConf
+- kind: analog
+  category: Smart
+  name: Room 8 ReqTemp
+- kind: analog
+  category: Smart
+  name: Room 8 TarTemp
+- kind: enum
+  category: Smart
+  name: Room 9 Cool ID
+- kind: enum
+  category: Smart
+  name: Room 9 CoolConf
+- kind: analog
+  category: Smart
+  name: Room 9 CurTemp
+- kind: enum
+  category: Smart
+  name: Room 9 Heat ID
+- kind: enum
+  category: Smart
+  name: Room 9 HeatConf
+- kind: analog
+  category: Smart
+  name: Room 9 ReqTemp
+- kind: analog
+  category: Smart
+  name: Room 9 TarTemp
+- kind: enum
+  category: Anlagenstatus
+  name: SmartGrid
+- kind: bit
+  category: Comfort EA
+  name: AnalogTypVolt
+- kind: bit
+  category: Comfort EA
+  name: SUPout
+- kind: bit
+  category: Comfort EA
+  name: FP2out
+- kind: bit
+  category: Comfort EA
+  name: MA2out
+- kind: bit
+  category: Comfort EA
+  name: MZ2out
+- kind: bit
+  category: Comfort EA
+  name: MA3out
+- kind: bit
+  category: Comfort EA
+  name: MZ3out
+- kind: bit
+  category: Comfort EA
+  name: FP3out
+- kind: bit
+  category: Comfort EA
+  name: ZW3SSTout
+- kind: bit
+  category: Comfort EA
+  name: SLPout
+- kind: bit
+  category: Comfort EA
+  name: SWTin
+- kind: analog
+  category: Comfort
+  name: TSS
+- kind: analog
+  category: Comfort
+  name: TSK
+- kind: analog
+  category: Comfort
+  name: TFB2
+- kind: analog
+  category: Comfort
+  name: TFB3
+- kind: analog
+  category: Comfort
+  name: TEE
+- kind: analog
+  category: Comfort
+  name: AnalogIn
+- kind: analog
+  category: Comfort
+  name: Sollwert_TVL_MK2
+- kind: analog
+  category: Comfort
+  name: Sollwert_TVL_MK3

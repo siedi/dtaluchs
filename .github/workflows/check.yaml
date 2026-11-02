@@ -1,0 +1,40 @@
+# Runs the one command that also gates every local commit (CONVENTIONS.md §9).
+# The stages live in ./dtaluchs check, not here, so a new stage runs here automatically.
+# No own DTA data in CI: tests over the own stock need LUX_DTA_DIR and are skipped.
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Python comes from backend/.python-version via uv, Node is set here.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      # --locked fails on a stale uv.lock; ./dtaluchs check would sync it silently.
+      - name: Python dependencies
+        working-directory: backend
+        run: uv sync --locked
+
+      - name: dtaluchs check
+        run: ./dtaluchs check

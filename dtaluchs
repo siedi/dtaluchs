@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+# Start script: ./dtaluchs serve | import | check | build | image
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT"
+
+# .env in the root holds tokens only; paths, port and interval live in dtaluchs.toml.
+if [[ -f .env ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  . ./.env
+  set +a
+fi
+
+red()   { printf '\033[31m✗ %s\033[0m\n' "$*"; }
+green() { printf '\033[32m✓ %s\033[0m\n' "$*"; }
+step()  { printf '\033[1m▸ %s\033[0m\n' "$*"; }
+
+# 0 when frontend/dist is missing or older than any source it is built from. The library build (dist-lib) and the
+# example host do not go into the app.
+frontend_stale() {
+  local stamp="frontend/dist/index.html"
+  [[ -f "$stamp" ]] || return 0
+  [[ -n "$(find frontend \( -name node_modules -o -name dist -o -name dist-lib -o -name host-example \) -prune -o -type f \
+    ! -name openapi.json ! -name .DS_Store -newer "$stamp" -print -quit)" ]]
+}
+
+ensure_deps() {
+  ( cd backend && uv sync --quiet )
+  # npm writes node_modules/.package-lock.json on every install; older than the lock means stale.
+  local marker="frontend/node_modules/.package-lock.json"
+  if [[ ! -f "$marker" || frontend/package-lock.json -nt "$marker" ]]; then
+    step "npm ci im Frontend"
+    ( cd frontend && npm ci --no-audit --no-fund )
+  fi
+}
+
+build() {
+  ensure_deps
+  step "Frontend bauen"
+  ( cd frontend && npm run --silent build )
+}
+
+serve() {
+  ensure_deps
+  if frontend_stale; then build; fi
+  exec uv run --project backend dtaluchs serve
+}
+
+# Red on findings and on every error of npm except a network or registry failure (ENOTFOUND, ECONNREFUSED, ECONNRESET,
+# ETIMEDOUT, EAI_AGAIN, HTTP 5xx): that is a note without red, like the size hints. npm prints an object with `error`
+# instead of `metadata` when the query fails; `code` or the message say why.
+audit_runtime() {
+  local out
+  out="$(cd frontend && npm audit --omit=dev --json 2>/dev/null)" || true
+  printf '%s' "$out" | node -e '
+    let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => {
+      let j; try { j = JSON.parse(s) } catch { j = { error: {}, message: "keine auswertbare Antwort von npm" } }
+      if (j.error) {
+        const why = [j.error.code, j.error.summary, j.message, j.error.detail].filter(Boolean).join(" ")
+        const net = /ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENETUNREACH|\b5\d\d\b/.test(why)
+        console.log((net ? "  Hinweis: npm audit nicht erreichbar, nicht geprüft: " : "npm audit gescheitert: ") + why)
+        process.exit(net ? 0 : 1)
+      }
+      const v = j.metadata.vulnerabilities, n = v.total
+      console.log(n ? n + " Meldungen: " + JSON.stringify(v) : "found 0 vulnerabilities"); process.exit(n ? 1 : 0)
+    })'
+}
+
+check() {
+  local fail=0
+  ensure_deps
+  step "ruff check";            ( cd backend && uv run ruff check . ) || fail=1
+  step "ruff format --check";   ( cd backend && uv run ruff format --check . ) || fail=1
+  step "mypy";                  ( cd backend && uv run mypy ) || fail=1
+  step "Importgrenze";          ( cd backend && uv run lint-imports --no-logo ) || fail=1
+  step "pytest";                ( cd backend && uv run pytest -q -n auto ) || fail=1
+  step "tsc -b";                ( cd frontend && npx --no-install tsc -b ) || fail=1
+  step "ESLint";                ( cd frontend && npx --no-install eslint src ) || fail=1
+  step "Importreihenfolge";     ( cd frontend && node scripts/import-order.mjs ) || fail=1
+  step "vitest";                ( cd frontend && npm run --silent test ) || fail=1
+  step "Bibliothek";            ( cd frontend && node scripts/bibliothek.mjs ) || fail=1
+  step "API-Vertrag";           ( cd frontend && npm run --silent check:api ) || fail=1
+  step "npm audit (Laufzeit)";  audit_runtime || fail=1
+  for extra in check.d/*.sh; do  # checks a clone adds for itself, if any
+    [[ -e $extra ]] || continue
+    step "${extra#check.d/}";    bash "$extra" || fail=1
+  done
+  step "Größen-Leitplanken (nur Hinweis)"
+  ( cd backend && uv run python scripts/size_hints.py src tests scripts )
+  if (( fail )); then red "check rot"; return 1; fi
+  green "check grün"
+}
+
+# Builds the Docker image for this platform and loads it; --platform and other arguments go to buildx.
+# Needs neither uv nor npm, the build runs inside the image.
+image() {
+  local version
+  version="$(awk -F'"' '/^\[/ { in_project = ($0 == "[project]") }
+    in_project && /^version *=/ { print $2; exit }' backend/pyproject.toml)"
+  if [[ -z "$version" ]]; then red "keine Version in backend/pyproject.toml"; exit 1; fi
+  step "Image dtaluchs:$version bauen"
+  exec docker buildx build --load -t "dtaluchs:$version" -t dtaluchs:latest \
+    --build-arg "VERSION=$version" "$@" .
+}
+
+case "${1:-}" in
+  serve)  serve ;;
+  import) ensure_deps; exec uv run --project backend dtaluchs import ;;
+  check)  check ;;
+  build)  build ;;
+  image)  shift; image "$@" ;;
+  *)      echo "Verwendung: ./dtaluchs serve | import | check | build | image"; exit 2 ;;
+esac

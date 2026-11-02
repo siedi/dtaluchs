@@ -1,0 +1,957 @@
+/*
+ * Look of the interface: colour, type, grid and measures.
+ *
+ * Tokens (hell in :root, dunkel in .dark, own values, not inverted): --bg, --surface, --surface-2, --border,
+ * --border-strong, --text, --text-2, --text-3, --head-bg, --head-text, --head-text-2, --brand, --accent,
+ * --on-accent, --mark, --link, --accent-soft, and --ink-light, --ink-dark (text on the state segments of the signal
+ * lanes, read in shared/chart/theme.ts, no Tailwind name). Tailwind names: bg-bg, bg-surface, bg-surface-2, border-border,
+ * border-border-strong, text-text, text-text-2, text-text-3, bg-head-bg, text-head-text, text-head-text-2,
+ * text-brand, text-on-accent, text-link, bg-accent-soft; --accent itself is bg-primary (and text-primary-foreground
+ * on it). The shadcn names are bound to the tokens below; bg-accent is the soft hover/selected fill (accent-soft),
+ * not the Hausfarbe.
+ * Font sizes: text-xs 12/16 (axes, helper text, table head, unit), text-base 13/20 (controls, tables, legend,
+ * body), text-md 15/20 (section title, name in the head), text-lg 20/28 (page title), text-xl 32/40 (big figure).
+ * Radii: rounded-sm 4, rounded-md 6, rounded-lg 10, rounded-full. Shadow: shadow-pop only (menu, popover,
+ * calendar, dialog, toast; the tooltip has none). Spacing stays at 4 px per step.
+ */
+@import "tw-animate-css";
+@import "@fontsource-variable/ibm-plex-sans";
+@import "uplot/dist/uPlot.min.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Variants, utilities and keyframes that shadcn/tailwind.css (shadcn 4.21.4, MIT) brings, taken over whole so that the package
+ * need not be a runtime dependency (a fix: every class stays). The generated components in
+ * components/ui/ use the data-* variants and no-scrollbar; the rest is kept for the classes of a host.
+ */
+
+@theme inline {
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(
+        --radix-accordion-content-height,
+        var(--accordion-panel-height, auto)
+      );
+    }
+  }
+
+  @keyframes accordion-up {
+    from {
+      height: var(
+        --radix-accordion-content-height,
+        var(--accordion-panel-height, auto)
+      );
+    }
+    to {
+      height: 0;
+    }
+  }
+}
+
+/* Custom variants */
+@custom-variant data-open {
+  &:where([data-state="open"]),
+  &:where([data-open]:not([data-open="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-closed {
+  &:where([data-state="closed"]),
+  &:where([data-closed]:not([data-closed="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-checked {
+  &:where([data-state="checked"]),
+  &:where([data-checked]:not([data-checked="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-unchecked {
+  &:where([data-state="unchecked"]),
+  &:where([data-unchecked]:not([data-unchecked="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-selected {
+  &:where([data-selected="true"]) {
+    @slot;
+  }
+}
+
+@custom-variant data-disabled {
+  &:where([data-disabled="true"]),
+  &:where([data-disabled]:not([data-disabled="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-active {
+  &:where([data-state="active"]),
+  &:where([data-active]:not([data-active="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-horizontal {
+  &:where([data-orientation="horizontal"]) {
+    @slot;
+  }
+}
+
+@custom-variant data-vertical {
+  &:where([data-orientation="vertical"]) {
+    @slot;
+  }
+}
+
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* scroll-fade */
+@property --scroll-fade-t {
+  syntax: "<length-percentage>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --scroll-fade-b {
+  syntax: "<length-percentage>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --scroll-fade-s {
+  syntax: "<length-percentage>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --scroll-fade-e {
+  syntax: "<length-percentage>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --scroll-fade-mask {
+  syntax: "*";
+  inherits: false;
+}
+
+@theme inline {
+  @keyframes scroll-fade-reveal-t {
+    from {
+      --scroll-fade-t: 0px;
+    }
+    to {
+      --scroll-fade-t: var(--_scroll-fade-size-t, var(--scroll-fade-size, min(12%, calc(var(--spacing) * 10))));
+    }
+  }
+  @keyframes scroll-fade-reveal-b {
+    from {
+      --scroll-fade-b: var(--_scroll-fade-size-b, var(--scroll-fade-size, min(12%, calc(var(--spacing) * 10))));
+    }
+    to {
+      --scroll-fade-b: 0px;
+    }
+  }
+  @keyframes scroll-fade-reveal-s {
+    from {
+      --scroll-fade-s: 0px;
+    }
+    to {
+      --scroll-fade-s: var(--_scroll-fade-size-s, var(--scroll-fade-size, min(12%, calc(var(--spacing) * 10))));
+    }
+  }
+  @keyframes scroll-fade-reveal-e {
+    from {
+      --scroll-fade-e: var(--_scroll-fade-size-e, var(--scroll-fade-size, min(12%, calc(var(--spacing) * 10))));
+    }
+    to {
+      --scroll-fade-e: 0px;
+    }
+  }
+}
+
+@utility scroll-fade {
+  --_scroll-fade-size-t: var(
+    --scroll-fade-t-size,
+    var(--scroll-fade-size, min(12%, calc(var(--spacing) * 10)))
+  );
+  --_scroll-fade-size-b: var(
+    --scroll-fade-b-size,
+    var(--scroll-fade-size, min(12%, calc(var(--spacing) * 10)))
+  );
+  --scroll-fade-block: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--scroll-fade-t, 0px),
+    #000 calc(100% - var(--scroll-fade-b, 0px)),
+    transparent 100%
+  );
+  -webkit-mask-image: var(--scroll-fade-mask, var(--scroll-fade-block));
+  mask-image: var(--scroll-fade-mask, var(--scroll-fade-block));
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+
+  @supports (animation-timeline: scroll()) {
+    animation:
+      scroll-fade-reveal-t 1ms ease-in-out,
+      scroll-fade-reveal-b 1ms ease-in-out;
+    animation-timeline: scroll(self y), scroll(self y);
+    animation-range:
+      0 var(--scroll-fade-reveal, calc(var(--spacing) * 24)),
+      calc(100% - var(--scroll-fade-reveal, calc(var(--spacing) * 24))) 100%;
+    animation-fill-mode: both;
+  }
+
+  @supports not (animation-timeline: scroll()) {
+    --scroll-fade-t: var(--_scroll-fade-size-t);
+    --scroll-fade-b: var(--_scroll-fade-size-b);
+  }
+}
+
+@utility scroll-fade-y {
+  --_scroll-fade-size-t: var(
+    --scroll-fade-t-size,
+    var(--scroll-fade-size, min(12%, calc(var(--spacing) * 10)))
+  );
+  --_scroll-fade-size-b: var(
+    --scroll-fade-b-size,
+    var(--scroll-fade-size, min(12%, calc(var(--spacing) * 10)))
+  );
+  --scroll-fade-block: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--scroll-fade-t, 0px),
+    #000 calc(100% - var(--scroll-fade-b, 0px)),
+    transparent 100%
+  );
+  -webkit-mask-image: var(--scroll-fade-mask, var(--scroll-fade-block));
+  mask-image: var(--scroll-fade-mask, var(--scroll-fade-block));
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+
+  @supports (animation-timeline: scroll()) {
+    animation:
+      scroll-fade-reveal-t 1ms ease-in-out,
+      scroll-fade-reveal-b 1ms ease-in-out;
+    animation-timeline: scroll(self y), scroll(self y);
+    animation-range:
+      0 var(--scroll-fade-reveal, calc(var(--spacing) * 24)),
+      calc(100% - var(--scroll-fade-reveal, calc(var(--spacing) * 24))) 100%;
+    animation-fill-mode: both;
+  }
+
+  @supports not (animation-timeline: scroll()) {
+    --scroll-fade-t: var(--_scroll-fade-size-t);
+    --scroll-fade-b: var(--_scroll-fade-size-b);
+  }
+}
+
+@utility scroll-fade-x {
+  --_scroll-fade-size-s: var(
+    --scroll-fade-s-size,
+    var(--scroll-fade-size, min(12%, calc(var(--spacing) * 10)))
+  );
+  --_scroll-fade-size-e: var(
+    --scroll-fade-e-size,
+    var(--scroll-fade-size, min(12%, calc(var(--spacing) * 10)))
+  );
+  --scroll-fade-inline: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--scroll-fade-s, 0px),
+    #000 calc(100% - var(--scroll-fade-e, 0px)),
+    transparent 100%
+  );
+  &:where([dir="rtl"], [dir="rtl"] *) {
+    --scroll-fade-inline: linear-gradient(
+      to left,
+      transparent 0,
+      #000 var(--scroll-fade-s, 0px),
+      #000 calc(100% - var(--scroll-fade-e, 0px)),
+      transparent 100%
+    );
+  }
+  -webkit-mask-image: var(--scroll-fade-mask, var(--scroll-fade-inline));
+  mask-image: var(--scroll-fade-mask, var(--scroll-fade-inline));
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+
+  @supports (animation-timeline: scroll()) {
+    animation:
+      scroll-fade-reveal-s 1ms ease-in-out,
+      scroll-fade-reveal-e 1ms ease-in-out;
+    animation-timeline: scroll(self inline), scroll(self inline);
+    animation-range:
+      0 var(--scroll-fade-reveal, calc(var(--spacing) * 24)),
+      calc(100% - var(--scroll-fade-reveal, calc(var(--spacing) * 24))) 100%;
+    animation-fill-mode: both;
+  }
+
+  @supports not (animation-timeline: scroll()) {
+    --scroll-fade-s: var(--_scroll-fade-size-s);
+    --scroll-fade-e: var(--_scroll-fade-size-e);
+  }
+}
+
+@utility scroll-fade-t {
+  --_scroll-fade-size-t: var(
+    --scroll-fade-t-size,
+    var(--scroll-fade-size, min(12%, calc(var(--spacing) * 10)))
+  );
+  --scroll-fade-mask: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--scroll-fade-t, 0px),
+    #000 100%
+  );
+  -webkit-mask-image: var(--scroll-fade-mask);
+  mask-image: var(--scroll-fade-mask);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+
+  @supports (animation-timeline: scroll()) {
+    animation: scroll-fade-reveal-t 1ms ease-in-out;
+    animation-timeline: scroll(self y);
+    animation-range: 0 var(--scroll-fade-reveal, calc(var(--spacing) * 24));
+    animation-fill-mode: both;
+  }
+
+  @supports not (animation-timeline: scroll()) {
+    --scroll-fade-t: var(--_scroll-fade-size-t);
+  }
+}
+
+@utility scroll-fade-b {
+  --_scroll-fade-size-b: var(
+    --scroll-fade-b-size,
+    var(--scroll-fade-size, min(12%, calc(var(--spacing) * 10)))
+  );
+  --scroll-fade-mask: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 calc(100% - var(--scroll-fade-b, 0px)),
+    transparent 100%
+  );
+  -webkit-mask-image: var(--scroll-fade-mask);
+  mask-image: var(--scroll-fade-mask);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+
+  @supports (animation-timeline: scroll()) {
+    animation: scroll-fade-reveal-b 1ms ease-in-out;
+    animation-timeline: scroll(self y);
+    animation-range: calc(
+        100% - var(--scroll-fade-reveal, calc(var(--spacing) * 24))
+      )
+      100%;
+    animation-fill-mode: both;
+  }
+
+  @supports not (animation-timeline: scroll()) {
+    --scroll-fade-b: var(--_scroll-fade-size-b);
+  }
+}
+
+@utility scroll-fade-l {
+  --_scroll-fade-size-s: var(
+    --scroll-fade-s-size,
+    var(--scroll-fade-size, min(12%, calc(var(--spacing) * 10)))
+  );
+  --scroll-fade-mask: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--scroll-fade-s, 0px),
+    #000 100%
+  );
+  -webkit-mask-image: var(--scroll-fade-mask);
+  mask-image: var(--scroll-fade-mask);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+
+  @supports (animation-timeline: scroll()) {
+    animation: scroll-fade-reveal-s 1ms ease-in-out;
+    animation-timeline: scroll(self x);
+    animation-range: 0 var(--scroll-fade-reveal, calc(var(--spacing) * 24));
+    animation-fill-mode: both;
+  }
+
+  @supports not (animation-timeline: scroll()) {
+    --scroll-fade-s: var(--_scroll-fade-size-s);
+  }
+}
+
+@utility scroll-fade-r {
+  --_scroll-fade-size-e: var(
+    --scroll-fade-e-size,
+    var(--scroll-fade-size, min(12%, calc(var(--spacing) * 10)))
+  );
+  --scroll-fade-mask: linear-gradient(
+    to right,
+    #000 0,
+    #000 calc(100% - var(--scroll-fade-e, 0px)),
+    transparent 100%
+  );
+  -webkit-mask-image: var(--scroll-fade-mask);
+  mask-image: var(--scroll-fade-mask);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+
+  @supports (animation-timeline: scroll()) {
+    animation: scroll-fade-reveal-e 1ms ease-in-out;
+    animation-timeline: scroll(self x);
+    animation-range: calc(
+        100% - var(--scroll-fade-reveal, calc(var(--spacing) * 24))
+      )
+      100%;
+    animation-fill-mode: both;
+  }
+
+  @supports not (animation-timeline: scroll()) {
+    --scroll-fade-e: var(--_scroll-fade-size-e);
+  }
+}
+
+@utility scroll-fade-s {
+  --_scroll-fade-size-s: var(
+    --scroll-fade-s-size,
+    var(--scroll-fade-size, min(12%, calc(var(--spacing) * 10)))
+  );
+  --scroll-fade-mask: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--scroll-fade-s, 0px),
+    #000 100%
+  );
+  &:where([dir="rtl"], [dir="rtl"] *) {
+    --scroll-fade-mask: linear-gradient(
+      to left,
+      transparent 0,
+      #000 var(--scroll-fade-s, 0px),
+      #000 100%
+    );
+  }
+  -webkit-mask-image: var(--scroll-fade-mask);
+  mask-image: var(--scroll-fade-mask);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+
+  @supports (animation-timeline: scroll()) {
+    animation: scroll-fade-reveal-s 1ms ease-in-out;
+    animation-timeline: scroll(self inline);
+    animation-range: 0 var(--scroll-fade-reveal, calc(var(--spacing) * 24));
+    animation-fill-mode: both;
+  }
+
+  @supports not (animation-timeline: scroll()) {
+    --scroll-fade-s: var(--_scroll-fade-size-s);
+  }
+}
+
+@utility scroll-fade-e {
+  --_scroll-fade-size-e: var(
+    --scroll-fade-e-size,
+    var(--scroll-fade-size, min(12%, calc(var(--spacing) * 10)))
+  );
+  --scroll-fade-mask: linear-gradient(
+    to right,
+    #000 0,
+    #000 calc(100% - var(--scroll-fade-e, 0px)),
+    transparent 100%
+  );
+  &:where([dir="rtl"], [dir="rtl"] *) {
+    --scroll-fade-mask: linear-gradient(
+      to left,
+      #000 0,
+      #000 calc(100% - var(--scroll-fade-e, 0px)),
+      transparent 100%
+    );
+  }
+  -webkit-mask-image: var(--scroll-fade-mask);
+  mask-image: var(--scroll-fade-mask);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+
+  @supports (animation-timeline: scroll()) {
+    animation: scroll-fade-reveal-e 1ms ease-in-out;
+    animation-timeline: scroll(self inline);
+    animation-range: calc(
+        100% - var(--scroll-fade-reveal, calc(var(--spacing) * 24))
+      )
+      100%;
+    animation-fill-mode: both;
+  }
+
+  @supports not (animation-timeline: scroll()) {
+    --scroll-fade-e: var(--_scroll-fade-size-e);
+  }
+}
+
+@utility scroll-fade-* {
+  --scroll-fade-size: calc(var(--spacing) * --value(integer));
+  --scroll-fade-size: --value([length], [percentage]);
+}
+
+@utility scroll-fade-t-* {
+  --scroll-fade-t-size: calc(var(--spacing) * --value(integer));
+  --scroll-fade-t-size: --value([length], [percentage]);
+}
+
+@utility scroll-fade-b-* {
+  --scroll-fade-b-size: calc(var(--spacing) * --value(integer));
+  --scroll-fade-b-size: --value([length], [percentage]);
+}
+
+@utility scroll-fade-s-* {
+  --scroll-fade-s-size: calc(var(--spacing) * --value(integer));
+  --scroll-fade-s-size: --value([length], [percentage]);
+}
+
+@utility scroll-fade-e-* {
+  --scroll-fade-e-size: calc(var(--spacing) * --value(integer));
+  --scroll-fade-e-size: --value([length], [percentage]);
+}
+
+@utility scroll-fade-none {
+  --scroll-fade-mask: none;
+}
+
+/* shimmer */
+@property --shimmer-angle {
+  syntax: "<angle>";
+  inherits: true;
+  initial-value: 20deg;
+}
+@property --shimmer-image {
+  syntax: "*";
+  inherits: false;
+}
+@property --shimmer-text-fill {
+  syntax: "*";
+  inherits: false;
+}
+
+@theme inline {
+  @keyframes tw-shimmer {
+    from {
+      background-position: 100% 0;
+    }
+    to {
+      background-position: 0 0;
+    }
+  }
+}
+
+@utility shimmer {
+  --_spread: var(--shimmer-spread, calc(3ch + 40px));
+  --_base: currentColor;
+  --_highlight: var(
+    --shimmer-color,
+    oklch(from currentColor l c h / calc(alpha* 0.2))
+  );
+
+  background-image: var(
+    --shimmer-image,
+    linear-gradient(
+      calc(90deg + var(--shimmer-angle)),
+      var(--_base) calc(50% - var(--_spread)),
+      color-mix(in oklch, var(--_highlight), var(--_base) 50%)
+        calc(50% - var(--_spread) * 0.5),
+      var(--_highlight) 50%,
+      color-mix(in oklch, var(--_highlight), var(--_base) 50%)
+        calc(50% + var(--_spread) * 0.5),
+      var(--_base) calc(50% + var(--_spread))
+    )
+  );
+  background-repeat: no-repeat;
+  background-size: calc(200% + var(--_spread) * 2) 100%;
+  background-position: 0 0;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: var(--shimmer-text-fill, transparent);
+  animation: tw-shimmer var(--shimmer-duration, 2s) linear infinite;
+
+  @variant dark {
+    --_highlight: var(
+      --shimmer-color,
+      oklch(from currentColor max(0.8, calc(l + 0.4)) c h / calc(alpha + 0.4))
+    );
+  }
+
+  &:where([dir="rtl"], [dir="rtl"] *) {
+    animation-direction: reverse;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    background-image: none;
+    -webkit-text-fill-color: currentColor;
+  }
+}
+
+@utility shimmer-once {
+  animation-iteration-count: 1;
+}
+
+@utility shimmer-reverse {
+  animation-direction: reverse;
+}
+
+@utility shimmer-none {
+  --shimmer-image: none;
+  --shimmer-text-fill: currentColor;
+}
+
+@utility shimmer-color-* {
+  --shimmer-color: --value(--color, [color]);
+  --shimmer-color: color-mix(
+    in oklch,
+    --value(--color, [color]) calc(--modifier(integer) * 1%),
+    transparent
+  );
+}
+
+@utility shimmer-duration-* {
+  --shimmer-duration: calc(--value(integer) * 1ms);
+}
+
+@utility shimmer-spread-* {
+  --shimmer-spread: calc(var(--spacing) * --value(integer));
+  --shimmer-spread: --value([length], [percentage]);
+}
+
+@utility shimmer-angle-* {
+  --shimmer-angle: calc(--value(integer) * 1deg);
+}
+
+/* Kept for backwards compatibility. Unlayered, so it still wins over other
+   utilities on a plain .shimmer element. Variants are handled in the utility. */
+@media (prefers-reduced-motion: reduce) {
+  .shimmer {
+    animation: none;
+    background-image: none;
+    -webkit-text-fill-color: currentColor;
+  }
+}
+
+@theme inline {
+    --font-heading: var(--font-sans);
+    --color-bg: var(--bg);
+    --color-surface: var(--surface);
+    --color-surface-2: var(--surface-2);
+    --color-border-strong: var(--border-strong);
+    --color-text: var(--text);
+    --color-text-2: var(--text-2);
+    --color-text-3: var(--text-3);
+    --color-head-bg: var(--head-bg);
+    --color-head-text: var(--head-text);
+    --color-head-text-2: var(--head-text-2);
+    --color-brand: var(--brand);
+    --color-on-accent: var(--on-accent);
+    --color-mark: var(--mark);
+    --color-link: var(--link);
+    --color-accent-soft: var(--accent-soft);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent-soft);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --color-ok: var(--ok);
+    --color-warn: var(--warn);
+    --color-crit: var(--crit);
+    --color-drop: var(--drop);
+    --color-drop-line: var(--drop-line);
+    --color-no: var(--no);
+}
+
+/* Scales that replace Tailwind's own: the reset leaves only the names below. */
+@theme {
+    --font-sans: 'IBM Plex Sans Variable', system-ui, sans-serif;
+    --text-*: initial;
+    --text-xs: 12px;
+    --text-xs--line-height: 16px;
+    --text-base: 13px;
+    --text-base--line-height: 20px;
+    --text-md: 15px;
+    --text-md--line-height: 20px;
+    --text-lg: 20px;
+    --text-lg--line-height: 28px;
+    --text-xl: 32px;
+    --text-xl--line-height: 40px;
+    --radius-*: initial;
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 10px;
+    --shadow-*: initial;
+    --shadow-pop: var(--pop-shadow);
+}
+
+:root {
+    /* Height of the bar at the bottom: below 640 px, `sm` of Tailwind, and with a bar. Content, toasts and
+       popovers of the core and of a host keep this much room at the bottom. */
+    --nav-bottom-height: 0px;
+    color-scheme: light;
+    --bg: #f3f1ef;
+    --surface: #ffffff;
+    --surface-2: #ece8e3;
+    --border: #ddd6ce;
+    --border-strong: #a39280;
+    --text: #231c16;
+    --text-2: #5a4f45;
+    --text-3: #6b5f54;
+    --head-bg: #2a211a;
+    --head-text: #f3ece4;
+    --head-text-2: #bfb2a4;
+    --brand: #e8a33d;
+    --accent: #8a5200;
+    --on-accent: #ffffff;
+    /* Text on the colour of a state segment: the one of these two with the higher contrast. The ink tokens are not set again
+       in .dark. */
+    --ink-light: #ffffff;
+    --ink-dark: #000000;
+    --mark: #8a5200;
+    --link: #8a5200;
+    --accent-soft: rgba(138, 82, 0, .10);
+    --pop-shadow: 0 4px 16px rgba(0, 0, 0, .16);
+    /* Traffic light for findings (CONVENTIONS.md §7) */
+    --ok: oklch(0.6 0.15 150);
+    --warn: oklch(0.75 0.16 75);
+    --crit: oklch(0.58 0.22 27);
+    /* Categorical series palette from the dataviz skill */
+    --series-1: #2a78d6; --series-2: #eb6834; --series-3: #0aa975; --series-4: #c88805;
+    --series-5: #de729b; --series-6: #008300; --series-7: #6250d6; --series-8: #e34948;
+    --gap: rgba(107, 95, 84, .16);
+    /* Selection while dragging over a chart (uPlot .u-select): --text-3 at 24 % */
+    --select: rgba(107, 95, 84, .24);
+    /* Opacity of the band between both COPs */
+    --band-alpha: 0.22;
+    /* Two warm greys of the stock band, alternating per firmware */
+    --band-a: #dbd5ce; --band-b: #c0b8af;
+    /* Targets while dragging */
+    --drop: rgba(138, 82, 0, .08); --drop-line: #8a5200; --no: rgba(107, 95, 84, .10);
+}
+
+/* Only where the bar stands: with no target (a host page outside a plant) there is no bar and nothing to keep clear. */
+@media (width < 40rem) {
+    :root:has([data-bottom-nav]) {
+        --nav-bottom-height: calc(56px + env(safe-area-inset-bottom));
+    }
+}
+
+.dark {
+    color-scheme: dark;
+    --bg: #14110e;
+    --surface: #1d1915;
+    --surface-2: #2a241e;
+    --border: #3a3129;
+    --border-strong: #726353;
+    --text: #f3ece4;
+    --text-2: #c9bcae;
+    --text-3: #9a8d80;
+    --head-bg: #241c15;
+    --head-text: #f3ece4;
+    --head-text-2: #b5a796;
+    --brand: #e8a33d;
+    --accent: #f2b866;
+    --on-accent: #1a1410;
+    --mark: #f2b866;
+    --link: #f2b866;
+    --accent-soft: rgba(242, 184, 102, .14);
+    --pop-shadow: 0 4px 16px rgba(0, 0, 0, .5);
+    --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
+    --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767;
+    --gap: rgba(154, 141, 128, .14);
+    --select: rgba(154, 141, 128, .24);
+    --band-alpha: 0.38;
+    --band-a: #342d26; --band-b: #4d443a;
+    --drop: rgba(242, 184, 102, .12); --drop-line: #f2b866; --no: rgba(154, 141, 128, .10);
+    --ok: oklch(0.7 0.15 150);
+    --warn: oklch(0.8 0.15 75);
+    --crit: oklch(0.7 0.19 22);
+}
+
+/* The names of shadcn, bound to the tokens; in both modes, resolved where .dark sits. */
+:root, .dark {
+    --background: var(--bg);
+    --foreground: var(--text);
+    --card: var(--surface);
+    --card-foreground: var(--text);
+    --popover: var(--surface);
+    --popover-foreground: var(--text);
+    --primary: var(--accent);
+    --primary-foreground: var(--on-accent);
+    --secondary: var(--surface-2);
+    --secondary-foreground: var(--text);
+    --muted: var(--surface-2);
+    --muted-foreground: var(--text-2);
+    --accent-foreground: var(--text);
+    --destructive: var(--crit);
+    --input: var(--border-strong);
+    --ring: var(--mark);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    }
+  /* 13/20 as the base size, digits of fixed width */
+  body {
+    @apply bg-background text-foreground text-base tabular-nums;
+    }
+  html {
+    @apply font-sans;
+    }
+  /* Weights are 400, 500 and 600 only: <b> and <strong> take 600, not the 700 of `bolder` */
+  b,
+  strong {
+    font-weight: 600;
+    }
+  /* One form of focus; table rows sit inside the border of their table, so the outline goes inwards. A container
+     that only takes focus by script (tabindex -1: menu, dialog) gets none; a button with -1 still does (roving). */
+  :is(a, button, input, select, textarea, summary, [tabindex], [role="button"]):focus-visible {
+    outline: 2px solid var(--mark);
+    outline-offset: 2px;
+    }
+  [tabindex="-1"]:not(a, button, input, select, textarea, summary, [role="button"]):focus-visible {
+    outline: none;
+    }
+  /* Menu items (tabindex -1, roving): the keyboard shows the one form of focus, inwards because the menu clips its content
+     at its padding (4 px, an outline of 2 px at +2 px would end exactly on that edge). Radix focuses an item under the
+     mouse too, and Chromium and WebKit count that focus as :focus-visible (measured), so the outline hangs on the kind of
+     the last input (`data-input` on html, lib/input-mode.ts), not on :hover: under the pointer the item shows no outline,
+     and when the keyboard reaches the item under a resting pointer it shows it. The focused item has tabindex 0 (roving),
+     so the rule above for every [tabindex] would give it the outline at +2 px: the first rule here takes it off. The fill
+     --accent-soft stays for hover and highlight. */
+  [role^="menuitem"][tabindex]:focus-visible {
+    outline: none;
+    }
+  html[data-input="keyboard"] [role^="menuitem"][tabindex]:focus-visible {
+    outline: 2px solid var(--mark);
+    outline-offset: -2px;
+    }
+  /* The frame of a table clips its content at a radius of 10 px; the outline of the last row follows the inner edge of
+     that corner, so it is not cut off there (an outline follows the radius of its element). Only the rows of the
+     statistic take focus (divs with role row); the rows of a table are not focusable, their link is. */
+  [role="row"][tabindex]:last-child:focus-visible {
+    border-bottom-left-radius: calc(var(--radius-lg) - 1px);
+    border-bottom-right-radius: calc(var(--radius-lg) - 1px);
+    }
+  /* The head is dark in both modes and carries its own colours: the Hausfarbe is the focus colour there
+     (#8a5200 gives 2,47:1 on it), the chosen part of the theme switch keeps --accent and --on-accent like
+     everywhere, the rest of the switch and the menu button take the text colours of the head. The shadcn names are bound at the root,
+     so those that the building blocks use (--ring, --muted-foreground) are bound again here. Marked with data-head on
+     the header (Shell.tsx), not by the tag. */
+  [data-head] {
+    --mark: var(--brand);
+    --ring: var(--mark);
+    --muted-foreground: var(--text-2);
+    --muted: transparent;
+    --surface: color-mix(in srgb, var(--head-text) 14%, transparent);
+    --surface-2: color-mix(in srgb, var(--head-text) 24%, transparent);
+    --border-strong: color-mix(in srgb, var(--head-text) 32%, transparent);
+    --text: var(--head-text);
+    --text-2: var(--head-text-2);
+    --text-3: var(--head-text-2);
+    }
+}
+/* Indeterminate progress bar (components/ProgressBar.tsx). */
+@keyframes indeterminate {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(340%); }
+}
+/* The pointer line of the charts: uPlot paints it in a fixed grey-blue; the token keeps it in step with
+   the theme. The doubled class beats the selector of uplot.min.css. */
+.uplot.u-hz .u-cursor-x,
+.uplot.u-vt .u-cursor-y {
+  border-right-color: var(--text-3);
+}
+.uplot.u-hz .u-cursor-y,
+.uplot.u-vt .u-cursor-x {
+  border-bottom-color: var(--text-3);
+}
+/* The selection while dragging: uPlot paints rgba(0, 0, 0, .07), which a dark chart surface hides. */
+.uplot .u-select {
+  background: var(--select);
+}
+/* A frame of 1 px as an inset shadow (the switch): it is painted under the children, so the outline of
+   a focused part can reach the edge of the switch without the frame lying over it. */
+.frame-inset {
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+/* The same in the line colour: the outer frame of the connected tiles on the start page. The lines of the tiles at the
+   right and bottom edge lie on the pixels of the shadow, so no edge is drawn twice. */
+.frame-inset-soft {
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+/* Forced colours drop box shadows: the frame of the switch becomes a line of its own, inside the box so nothing moves. */
+@media (forced-colors: active) {
+  .frame-inset,
+  .frame-inset-soft {
+    outline: 1px solid CanvasText;
+    outline-offset: -1px;
+  }
+}
+/* The chosen part of the switch in the head: the Hausfarbe with the colour of the head as text, light and dark
+   (7,32:1 and 7,78:1). In the utilities layer, where the specificity of
+   three attribute selectors (0,3,0) beats the utilities of the part, hover and dark included. */
+@layer utilities {
+  [data-head] [role="radio"][aria-checked="true"],
+  [data-head] [role="radio"][aria-checked="true"]:hover {
+    background: var(--brand);
+    color: var(--head-bg);
+  }
+}
+/* Fields on a touch screen in 16 px: Safari on iOS zooms onto a focused field by 16 / its font size and does not
+   zoom back (WebKit, WKWebViewIOS.mm, _zoomToFocusRect: webViewStandardFontSize = 16). Not via maximum-scale in the
+   viewport, which also stops the two-finger zoom. Boxes without text entry are left out. In the utilities layer, where
+   :is() with an attribute selector (0,1,1) beats a size utility on the field (0,1,0); a host inherits it with theme.css. */
+@media (pointer: coarse) {
+  @layer utilities {
+    :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"]), select, textarea) {
+      font-size: 16px;
+    }
+  }
+}

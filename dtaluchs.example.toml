@@ -1,0 +1,53 @@
+# Copy to dtaluchs.toml in the repository root. dtaluchs.toml never goes into the repo.
+# A missing key means the default. Environment variables take precedence (DATA_DIR, HOST, PORT,
+# DTA_SOURCE_DIR, IMPORT_INTERVAL_MIN, DUCKDB_MEMORY_MB, DUCKDB_THREADS, FIELD_STATS_PARALLEL, FETCH_ENABLED, WEB_READ_ONLY, TIMEZONE for timezone, ALLOW_FROM). Two instances side by side need
+# a port and a data_dir of their own.
+
+# Parquet partitions and meta.duckdb; relative to the repository root
+data_dir = "data"
+
+# Bind address; 0.0.0.0 makes the server reachable from the whole network, without login
+host = "127.0.0.1"
+
+# Port of the server
+port = 8470
+
+# Time zone of the heat pump (IANA name); all times and the boundaries of the figures apply in it
+timezone = "Europe/Berlin"
+
+# Addresses the server accepts connections from, comma-separated; empty means any. 127.0.0.1 and ::1
+# always apply. The Home Assistant app sets the address of the Supervisor.
+# allow_from = ""
+
+[import]
+# DTA source, only read; empty means no path
+source = ""
+
+# Minutes between two import runs, 0 turns the interval off
+interval_min = 15
+
+[duckdb]
+# DuckDB limits per instance. Server and import (child process) each have one for queries and
+# one for meta.duckdb, whose queries are small.
+# What does not fit into memory, DuckDB spills to <temp_dir>/tmp/<PID>, without temp_dir to
+# data_dir/tmp/<PID>. Relative to the repository root. Two containers must not share this folder.
+memory_mb = 1024
+threads = 4
+# temp_dir = "/var/tmp/dtaluchs"
+
+[field_stats]
+# Field statistics the server computes at the same time, across all installations. One over the whole stock
+# needs up to 1.6 GB, most of it in numpy outside the DuckDB limit. With one installation only one runs anyway.
+parallel = 1
+
+[fetch]
+# Main switch for fetching the DTA from the controller. false blocks every fetch: no schedule, no
+# fetch by button or command, no change of the address. Meant for a hosted instance; address
+# and switch of the installation live in data_dir/settings.json and are set in the user interface.
+enabled = true
+
+[web]
+# true removes everything that writes from the user interface and the API: no upload, no manual
+# import, no setting up or triggering a fetch, no saving views. The interval import and a configured
+# fetch keep running. Meant for an installation that only shows data.
+read_only = false

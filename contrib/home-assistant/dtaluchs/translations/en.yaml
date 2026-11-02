@@ -1,0 +1,7 @@
+configuration:
+  timezone:
+    name: "Time zone of the plant"
+    description: "IANA name, like Europe/Berlin. Empty: the time zone of Home Assistant."
+  duckdb_memory_mb:
+    name: "Memory for queries (MB)"
+    description: "Limit per DuckDB instance. Empty: the default of DTA-Luchs. Lower it on a small device."

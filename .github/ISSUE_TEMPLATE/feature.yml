@@ -1,0 +1,15 @@
+name: Feature request
+description: An idea for DTA-Luchs. English or German welcome.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What do you want to see or do?
+      description: Describe the question about your heat pump you want to answer, not only the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How could it work?

@@ -1,0 +1,4490 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "dtaluchs",
+    "version": "0.5.8"
+  },
+  "paths": {
+    "/api/config": {
+      "get": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Get Config",
+        "description": "Time zone and capabilities of the plant.",
+        "operationId": "get_config_api_config_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/meta": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "Get Meta",
+        "description": "Version, fields of the stock with their catalog details, time range, firmware versions, gaps and import state.\n\nWith `format=csv` and `table`, the layouts per firmware version or the gaps as a CSV file;\n`check=true` only checks and answers 204.",
+        "operationId": "get_meta_api_meta_get",
+        "parameters": [
+          {
+            "name": "table",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "layouts",
+                    "gaps"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Table"
+            }
+          },
+          {
+            "name": "check",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Check"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "csv",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Format"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response (JSON, or CSV with `format=csv`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaResponse"
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/series": {
+      "get": {
+        "tags": [
+          "series"
+        ],
+        "summary": "Get Series",
+        "description": "Curves of the requested fields, raw or condensed to about `points` rows.\n\nWith `format=csv` the same view as a CSV file without the rows of nulls at gaps; `check=true`\nonly checks and answers 204. `raw=true` (every record, Minutenwerte, any number of fields, all\nof them without `fields`) needs `format=csv`.",
+        "operationId": "get_series_api_series_get",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Unix-Sekunden der Steuerung, inklusive",
+              "title": "From"
+            },
+            "description": "Unix-Sekunden der Steuerung, inklusive"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Unix-Sekunden der Steuerung, exklusive",
+              "title": "To"
+            },
+            "description": "Unix-Sekunden der Steuerung, exklusive"
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fields"
+            }
+          },
+          {
+            "name": "points",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 2000,
+              "title": "Points"
+            }
+          },
+          {
+            "name": "raw",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Raw"
+            }
+          },
+          {
+            "name": "check",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Check"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "csv",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Format"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response (JSON, or CSV with `format=csv`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeriesResponse"
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stats": {
+      "get": {
+        "tags": [
+          "stats"
+        ],
+        "summary": "Get Stats",
+        "description": "Key figures per day, week or month and their sum over the range.\n\nWith `format=csv` the periods as a CSV file; `check=true` only checks and answers 204.",
+        "operationId": "get_stats_api_stats_get",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Unix-Sekunden der Steuerung, inklusive",
+              "title": "From"
+            },
+            "description": "Unix-Sekunden der Steuerung, inklusive"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Unix-Sekunden der Steuerung, exklusive",
+              "title": "To"
+            },
+            "description": "Unix-Sekunden der Steuerung, exklusive"
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "day",
+                "week",
+                "month"
+              ],
+              "type": "string",
+              "default": "day",
+              "title": "Period"
+            }
+          },
+          {
+            "name": "check",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Check"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "csv",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Format"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response (JSON, or CSV with `format=csv`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsResponse"
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/field-stats": {
+      "get": {
+        "tags": [
+          "field-stats"
+        ],
+        "summary": "Get Field Stats",
+        "description": "Key figures of every field of the stock over the range, one computation per plant at a time.\n\nAll plants of the process share `[field_stats] parallel` computations; a request may wait for those of\nother plants.\n\nWith `format=csv` one row per field as a CSV file; `check=true` only checks (range, `when`, the\nwriter) without computing and answers 204.",
+        "operationId": "get_field_stats_api_field_stats_get",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Unix-Sekunden der Steuerung, inklusive",
+              "title": "From"
+            },
+            "description": "Unix-Sekunden der Steuerung, inklusive"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Unix-Sekunden der Steuerung, exklusive",
+              "title": "To"
+            },
+            "description": "Unix-Sekunden der Steuerung, exklusive"
+          },
+          {
+            "name": "when",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Bit; nur Sätze, in denen es an ist, zählen",
+              "title": "When"
+            },
+            "description": "Bit; nur Sätze, in denen es an ist, zählen"
+          },
+          {
+            "name": "check",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Check"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "csv",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Format"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response (JSON, or CSV with `format=csv`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldStatsResponse"
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/field-stats/scope": {
+      "get": {
+        "tags": [
+          "field-stats"
+        ],
+        "summary": "Get Field Scope",
+        "description": "Records that count and the bits with a value in the range, without any figure and without the lock.",
+        "operationId": "get_field_scope_api_field_stats_scope_get",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Unix-Sekunden der Steuerung, inklusive",
+              "title": "From"
+            },
+            "description": "Unix-Sekunden der Steuerung, inklusive"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Unix-Sekunden der Steuerung, exklusive",
+              "title": "To"
+            },
+            "description": "Unix-Sekunden der Steuerung, exklusive"
+          },
+          {
+            "name": "when",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Bit; nur Sätze, in denen es an ist, zählen",
+              "title": "When"
+            },
+            "description": "Bit; nur Sätze, in denen es an ist, zählen"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldScopeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/events": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Get Events",
+        "description": "Compressor runs and defrosts that begin in the range.\n\nWith `format=csv` the runs as a CSV file; `check=true` only checks and answers 204.",
+        "operationId": "get_events_api_events_get",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Unix-Sekunden der Steuerung, inklusive",
+              "title": "From"
+            },
+            "description": "Unix-Sekunden der Steuerung, inklusive"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Unix-Sekunden der Steuerung, exklusive",
+              "title": "To"
+            },
+            "description": "Unix-Sekunden der Steuerung, exklusive"
+          },
+          {
+            "name": "check",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Check"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "csv",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Format"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response (JSON, or CSV with `format=csv`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventsResponse"
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/views": {
+      "get": {
+        "tags": [
+          "views"
+        ],
+        "summary": "List Views",
+        "description": "Shipped views first, then own ones by name.",
+        "operationId": "list_views_api_views_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "views"
+        ],
+        "summary": "Create View",
+        "description": "Save a new view under a new id.",
+        "operationId": "create_view_api_views_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ViewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/View"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/views/{view_id}": {
+      "put": {
+        "tags": [
+          "views"
+        ],
+        "summary": "Update View",
+        "description": "Change parts of an own view; `start` also works on shipped views.",
+        "operationId": "update_view_api_views__view_id__put",
+        "parameters": [
+          {
+            "name": "view_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "View Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ViewPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/View"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "views"
+        ],
+        "summary": "Delete View",
+        "description": "Delete an own view.",
+        "operationId": "delete_view_api_views__view_id__delete",
+        "parameters": [
+          {
+            "name": "view_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "View Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/upload/{name}": {
+      "put": {
+        "tags": [
+          "import"
+        ],
+        "summary": "Put Upload",
+        "description": "Store the raw body under `upload/`; 200 instead of 201 if the content was known already.\n\nWithout the capability the dependency answers 403 before this runs: the body is not read.",
+        "operationId": "put_upload_api_upload__name__put",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadAnswer"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/import": {
+      "post": {
+        "tags": [
+          "import"
+        ],
+        "summary": "Post Import",
+        "description": "Start a run, or queue one behind the running one; answers with the status.\n\n`upload`: the page just sent files. `fetch`: fetch from the control first; 409 if that has no address.\n403 if the plant lacks the capability of the trigger (checked first).",
+        "operationId": "post_import_api_import_post",
+        "parameters": [
+          {
+            "name": "trigger",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "manual",
+                "upload",
+                "fetch"
+              ],
+              "type": "string",
+              "default": "manual",
+              "title": "Trigger"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/import/status": {
+      "get": {
+        "tags": [
+          "import"
+        ],
+        "summary": "Get Import Status",
+        "description": "Runner state and the last logged run; during a write window the run last read.",
+        "operationId": "get_import_status_api_import_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/import/files": {
+      "get": {
+        "tags": [
+          "import"
+        ],
+        "summary": "Get Import Files",
+        "description": "One page of the import log; `counts` and `sources` cover the whole log.\n\nWith `format=csv` every hit of the filter as a CSV file (`offset` and `limit` do not apply),\ntimes in the zone of the plant; `check=true` only checks and answers 204.",
+        "operationId": "get_import_files_api_import_files_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "ok",
+                    "invalid",
+                    "error"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "path",
+                    "upload",
+                    "fetch"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "check",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Check"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "csv",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Format"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response (JSON, or CSV with `format=csv`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportFiles"
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/import/runs": {
+      "get": {
+        "tags": [
+          "import"
+        ],
+        "summary": "Get Import Runs",
+        "description": "The newest runs first.\n\nWith `format=csv` every run of the log as a CSV file (`limit` does not apply), times in the\nzone of the plant; `check=true` only checks and answers 204.",
+        "operationId": "get_import_runs_api_import_runs_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "check",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Check"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "csv",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Format"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response (JSON, or CSV with `format=csv`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportRuns"
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/fetch": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Get Fetch",
+        "description": "Address and switch of the fetch; `error` is set while settings.json cannot be used.",
+        "operationId": "get_fetch_api_settings_fetch_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FetchSettingsAnswer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Put Fetch",
+        "description": "Store the settings; the runner plans again at once. 403 without the capability `fetch`.",
+        "operationId": "put_fetch_api_settings_fetch_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FetchSettingsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FetchSettingsAnswer"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AnalogFigures": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "covered": {
+            "type": "number",
+            "title": "Covered"
+          },
+          "min": {
+            "type": "number",
+            "title": "Min"
+          },
+          "max": {
+            "type": "number",
+            "title": "Max"
+          },
+          "mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean"
+          },
+          "median": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median"
+          },
+          "sd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sd"
+          },
+          "histogram": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Histogram"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "covered",
+          "min",
+          "max",
+          "mean",
+          "median",
+          "sd",
+          "histogram"
+        ],
+        "title": "AnalogFigures",
+        "description": "`mean`, `median` and `sd` are null and `histogram` is empty for a field without time with weight."
+      },
+      "BitFigures": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "covered": {
+            "type": "number",
+            "title": "Covered"
+          },
+          "switch_ons": {
+            "type": "integer",
+            "title": "Switch Ons"
+          },
+          "share_on": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share On"
+          },
+          "on": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Phases"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "off": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Phases"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "covered",
+          "switch_ons",
+          "share_on",
+          "on",
+          "off"
+        ],
+        "title": "BitFigures",
+        "description": "`share_on` is null without time with weight; `on` and `off` are null without a complete phase."
+      },
+      "CapabilitiesInfo": {
+        "properties": {
+          "upload": {
+            "type": "boolean",
+            "title": "Upload"
+          },
+          "import": {
+            "type": "boolean",
+            "title": "Import"
+          },
+          "fetch": {
+            "type": "boolean",
+            "title": "Fetch"
+          },
+          "views": {
+            "type": "boolean",
+            "title": "Views"
+          },
+          "export": {
+            "type": "boolean",
+            "title": "Export"
+          },
+          "field_stats": {
+            "type": "boolean",
+            "title": "Field Stats"
+          }
+        },
+        "type": "object",
+        "required": [
+          "upload",
+          "import",
+          "fetch",
+          "views",
+          "export",
+          "field_stats"
+        ],
+        "title": "CapabilitiesInfo",
+        "description": "What this plant may do; `import` is a Python keyword, so the field has an alias."
+      },
+      "ConfigResponse": {
+        "properties": {
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/CapabilitiesInfo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timezone",
+          "capabilities"
+        ],
+        "title": "ConfigResponse"
+      },
+      "CurrentRunInfo": {
+        "properties": {
+          "trigger": {
+            "type": "string",
+            "enum": [
+              "cli",
+              "interval",
+              "manual",
+              "upload",
+              "fetch"
+            ],
+            "title": "Trigger"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "listing",
+              "fetching",
+              "reading",
+              "writing",
+              "gaps"
+            ],
+            "title": "Phase"
+          },
+          "files_total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Files Total"
+          },
+          "files_done": {
+            "type": "integer",
+            "title": "Files Done"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trigger",
+          "started_at",
+          "phase",
+          "files_total",
+          "files_done"
+        ],
+        "title": "CurrentRunInfo",
+        "description": "The run in progress; times are UTC without zone like the import log."
+      },
+      "Curve": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "value": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Value"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "texts": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Texts",
+            "description": "Anzeigetexte, die in dieser Kurve vorkommen; nur bei Zuständen"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "Je Zeile der Index in `texts`, null ohne Text; nur bei Zuständen"
+          },
+          "sections": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Sections"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Abschnitte des Zustands, null bei Messwerten und Bits und über 2 × points Abschnitten"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "value",
+          "min",
+          "max",
+          "texts",
+          "text",
+          "sections"
+        ],
+        "title": "Curve",
+        "description": "Values of one field, as long as `ts`; `min` and `max` only for condensed measured values,\n`texts`, `text` and `sections` only for state fields."
+      },
+      "DefrostColumns": {
+        "properties": {
+          "start": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Start"
+          },
+          "end": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "End"
+          },
+          "complete": {
+            "items": {
+              "type": "boolean"
+            },
+            "type": "array",
+            "title": "Complete"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start",
+          "end",
+          "complete"
+        ],
+        "title": "DefrostColumns"
+      },
+      "EnumFigures": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "covered": {
+            "type": "number",
+            "title": "Covered"
+          },
+          "shares": {
+            "items": {
+              "$ref": "#/components/schemas/EnumShare"
+            },
+            "type": "array",
+            "title": "Shares"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "covered",
+          "shares"
+        ],
+        "title": "EnumFigures"
+      },
+      "EnumShare": {
+        "properties": {
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "codes": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Codes"
+          },
+          "share": {
+            "type": "number",
+            "title": "Share"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "codes",
+          "share"
+        ],
+        "title": "EnumShare",
+        "description": "Time share of a display text, or of one code without text.\n\n`codes` are the codes of the text in the order of their first appearance in the range; `text`\nis null without a text, then `codes` has exactly one entry."
+      },
+      "EventsResponse": {
+        "properties": {
+          "from": {
+            "type": "integer",
+            "title": "From"
+          },
+          "to": {
+            "type": "integer",
+            "title": "To"
+          },
+          "runs": {
+            "$ref": "#/components/schemas/RunColumns"
+          },
+          "defrosts": {
+            "$ref": "#/components/schemas/DefrostColumns"
+          },
+          "kinds": {
+            "$ref": "#/components/schemas/KindColumns"
+          },
+          "gaps": {
+            "items": {
+              "$ref": "#/components/schemas/Gap"
+            },
+            "type": "array",
+            "title": "Gaps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "runs",
+          "defrosts",
+          "kinds",
+          "gaps"
+        ],
+        "title": "EventsResponse"
+      },
+      "FetchInfo": {
+        "properties": {
+          "allowed": {
+            "type": "boolean",
+            "title": "Allowed"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "next_run": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Run"
+          },
+          "last_saved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Saved At"
+          },
+          "last_saved_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Saved Name"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "last_error_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error At"
+          },
+          "settings_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Settings Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "allowed",
+          "enabled",
+          "address",
+          "next_run",
+          "last_saved_at",
+          "last_saved_name",
+          "last_error",
+          "last_error_at",
+          "settings_error"
+        ],
+        "title": "FetchInfo",
+        "description": "The fetch from the control; times are UTC without zone like the import log.\n\n`last_saved_name` is the file that run saved. `last_error` and `last_error_at` are the last\nfailed fetch if it is newer than any save or duplicate. `settings_error` names an unusable\nsettings.json, the fetch rests meanwhile. `next_run` is null while the fetch is off,\nlocked, without address or running."
+      },
+      "FetchSettingsAnswer": {
+        "properties": {
+          "allowed": {
+            "type": "boolean",
+            "title": "Allowed"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "allowed",
+          "address",
+          "enabled",
+          "error"
+        ],
+        "title": "FetchSettingsAnswer",
+        "description": "`allowed` is `[fetch] enabled` of dtaluchs.toml; `error` names an unusable settings.json."
+      },
+      "FetchSettingsBody": {
+        "properties": {
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "address",
+          "enabled"
+        ],
+        "title": "FetchSettingsBody",
+        "description": "Both fields are required; the address is checked in the router."
+      },
+      "FieldInfo": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "analog",
+              "enum",
+              "bit"
+            ],
+            "title": "Kind"
+          },
+          "group": {
+            "type": "string",
+            "title": "Group"
+          },
+          "group_label": {
+            "$ref": "#/components/schemas/Texts"
+          },
+          "label": {
+            "$ref": "#/components/schemas/Texts"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Texts"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "known": {
+            "type": "boolean",
+            "title": "Known"
+          },
+          "abbr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Abbr"
+          },
+          "raw_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Raw Names"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "group",
+          "group_label",
+          "label",
+          "description",
+          "unit",
+          "known",
+          "abbr",
+          "raw_names"
+        ],
+        "title": "FieldInfo",
+        "description": "A column of the stock; `known` is false for a raw field without catalog entry.\n\n`group` is the group of the catalog entry, for a raw field its category in the DTA header;\n`group_label` is the text of the group from the catalog, for a raw field the category again."
+      },
+      "FieldScopeResponse": {
+        "properties": {
+          "records": {
+            "type": "integer",
+            "title": "Records"
+          },
+          "bits": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Bits"
+          }
+        },
+        "type": "object",
+        "required": [
+          "records",
+          "bits"
+        ],
+        "title": "FieldScopeResponse",
+        "description": "What a range holds before any figure is computed: records that count and the bits with a value."
+      },
+      "FieldStatsResponse": {
+        "properties": {
+          "start": {
+            "type": "integer",
+            "title": "Start"
+          },
+          "end": {
+            "type": "integer",
+            "title": "End"
+          },
+          "first_ts": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Ts"
+          },
+          "last_ts": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Ts"
+          },
+          "records": {
+            "type": "integer",
+            "title": "Records"
+          },
+          "gaps": {
+            "$ref": "#/components/schemas/Gaps"
+          },
+          "weighted_seconds": {
+            "type": "integer",
+            "title": "Weighted Seconds"
+          },
+          "recorded_seconds": {
+            "type": "integer",
+            "title": "Recorded Seconds"
+          },
+          "when": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "When"
+          },
+          "analog": {
+            "items": {
+              "$ref": "#/components/schemas/AnalogFigures"
+            },
+            "type": "array",
+            "title": "Analog"
+          },
+          "bits": {
+            "items": {
+              "$ref": "#/components/schemas/BitFigures"
+            },
+            "type": "array",
+            "title": "Bits"
+          },
+          "enums": {
+            "items": {
+              "$ref": "#/components/schemas/EnumFigures"
+            },
+            "type": "array",
+            "title": "Enums"
+          },
+          "unchanged": {
+            "items": {
+              "$ref": "#/components/schemas/UnchangedField"
+            },
+            "type": "array",
+            "title": "Unchanged"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start",
+          "end",
+          "first_ts",
+          "last_ts",
+          "records",
+          "gaps",
+          "weighted_seconds",
+          "recorded_seconds",
+          "when",
+          "analog",
+          "bits",
+          "enums",
+          "unchanged"
+        ],
+        "title": "FieldStatsResponse",
+        "description": "`first_ts`, `last_ts`, `gaps` and `recorded_seconds` ignore `when`; `records` and `weighted_seconds` follow it."
+      },
+      "FileInfo": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "path",
+              "upload",
+              "fetch"
+            ],
+            "title": "Source"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "invalid",
+              "error"
+            ],
+            "title": "Status"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "layout_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Layout Id"
+          },
+          "read_records": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read Records"
+          },
+          "new_records": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Records"
+          },
+          "conflicts": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conflicts"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "imported_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Imported At"
+          },
+          "removed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Removed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "name",
+          "status",
+          "reason",
+          "version",
+          "layout_id",
+          "read_records",
+          "new_records",
+          "conflicts",
+          "size",
+          "imported_at",
+          "removed_at"
+        ],
+        "title": "FileInfo"
+      },
+      "FirmwareInfo": {
+        "properties": {
+          "software_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Software Version"
+          },
+          "layout_id": {
+            "type": "integer",
+            "title": "Layout Id"
+          },
+          "first_ts": {
+            "type": "integer",
+            "title": "First Ts"
+          },
+          "last_ts": {
+            "type": "integer",
+            "title": "Last Ts"
+          },
+          "records": {
+            "type": "integer",
+            "title": "Records"
+          }
+        },
+        "type": "object",
+        "required": [
+          "software_version",
+          "layout_id",
+          "first_ts",
+          "last_ts",
+          "records"
+        ],
+        "title": "FirmwareInfo"
+      },
+      "Fixed": {
+        "properties": {
+          "from": {
+            "type": "integer",
+            "title": "From"
+          },
+          "to": {
+            "type": "integer",
+            "title": "To"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from",
+          "to"
+        ],
+        "title": "Fixed",
+        "description": "A fixed range in controller time, seconds; serialised as `from` and `to`."
+      },
+      "Gap": {
+        "properties": {
+          "start_ts": {
+            "type": "integer",
+            "title": "Start Ts"
+          },
+          "end_ts": {
+            "type": "integer",
+            "title": "End Ts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start_ts",
+          "end_ts"
+        ],
+        "title": "Gap"
+      },
+      "GapInfo": {
+        "properties": {
+          "start_ts": {
+            "type": "integer",
+            "title": "Start Ts"
+          },
+          "end_ts": {
+            "type": "integer",
+            "title": "End Ts"
+          },
+          "seconds": {
+            "type": "integer",
+            "title": "Seconds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start_ts",
+          "end_ts",
+          "seconds"
+        ],
+        "title": "GapInfo"
+      },
+      "Gaps": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "seconds": {
+            "type": "integer",
+            "title": "Seconds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "count",
+          "seconds"
+        ],
+        "title": "Gaps",
+        "description": "Gaps between records of the range, without `when`."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ImportFiles": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/StatusCounts"
+          },
+          "sources": {
+            "$ref": "#/components/schemas/SourceCounts"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/FileInfo"
+            },
+            "type": "array",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "counts",
+          "sources",
+          "files"
+        ],
+        "title": "ImportFiles",
+        "description": "`total` counts the hits of the filter, `counts` and `sources` the whole log."
+      },
+      "ImportInfo": {
+        "properties": {
+          "last_run": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run"
+          },
+          "files_ok": {
+            "type": "integer",
+            "title": "Files Ok"
+          },
+          "files_invalid": {
+            "type": "integer",
+            "title": "Files Invalid"
+          },
+          "files_error": {
+            "type": "integer",
+            "title": "Files Error"
+          },
+          "records": {
+            "type": "integer",
+            "title": "Records"
+          },
+          "gaps": {
+            "type": "integer",
+            "title": "Gaps"
+          },
+          "gap_s": {
+            "type": "integer",
+            "title": "Gap S"
+          }
+        },
+        "type": "object",
+        "required": [
+          "last_run",
+          "files_ok",
+          "files_invalid",
+          "files_error",
+          "records",
+          "gaps",
+          "gap_s"
+        ],
+        "title": "ImportInfo"
+      },
+      "ImportRuns": {
+        "properties": {
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/RunInfo"
+            },
+            "type": "array",
+            "title": "Runs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "runs"
+        ],
+        "title": "ImportRuns"
+      },
+      "ImportStatus": {
+        "properties": {
+          "running": {
+            "type": "boolean",
+            "title": "Running"
+          },
+          "queued": {
+            "type": "boolean",
+            "title": "Queued"
+          },
+          "current": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CurrentRunInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceInfo"
+          },
+          "fetch": {
+            "$ref": "#/components/schemas/FetchInfo"
+          },
+          "last": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LastRunInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "running",
+          "queued",
+          "current",
+          "source",
+          "fetch",
+          "last",
+          "error"
+        ],
+        "title": "ImportStatus",
+        "description": "`error` is the text of the last child that ended badly, also where no run was logged."
+      },
+      "Item": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "slot": {
+            "type": "integer",
+            "title": "Slot"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "slot"
+        ],
+        "title": "Item",
+        "description": "A field in a chart or in the signal area with its colour slot."
+      },
+      "KindColumns": {
+        "properties": {
+          "kind": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "heating",
+                "dhw",
+                "mixed"
+              ]
+            },
+            "type": "array",
+            "title": "Kind"
+          },
+          "runs": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Runs"
+          },
+          "run_s": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Run S"
+          },
+          "flow_mean": {
+            "$ref": "#/components/schemas/KindFigures"
+          },
+          "flow_end": {
+            "$ref": "#/components/schemas/KindFigures"
+          },
+          "return_mean": {
+            "$ref": "#/components/schemas/KindFigures"
+          },
+          "spread_heating_mean": {
+            "$ref": "#/components/schemas/KindFigures"
+          },
+          "source_in_mean": {
+            "$ref": "#/components/schemas/KindFigures"
+          },
+          "source_out_mean": {
+            "$ref": "#/components/schemas/KindFigures"
+          },
+          "spread_source_mean": {
+            "$ref": "#/components/schemas/KindFigures"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "runs",
+          "run_s",
+          "flow_mean",
+          "flow_end",
+          "return_mean",
+          "spread_heating_mean",
+          "source_in_mean",
+          "source_out_mean",
+          "spread_source_mean"
+        ],
+        "title": "KindColumns",
+        "description": "Block \"Läufe nach Art\": complete runs by kind, only kinds that have one."
+      },
+      "KindFigures": {
+        "properties": {
+          "min": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Min"
+          },
+          "max": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Max"
+          },
+          "mean": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Mean"
+          },
+          "median": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Median"
+          },
+          "std": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Std"
+          },
+          "histogram": {
+            "items": {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Histogram"
+          }
+        },
+        "type": "object",
+        "required": [
+          "min",
+          "max",
+          "mean",
+          "median",
+          "std",
+          "histogram"
+        ],
+        "title": "KindFigures",
+        "description": "Figures of one temperature per kind: one entry per kind, null without a value."
+      },
+      "LastRunInfo": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "trigger": {
+            "type": "string",
+            "enum": [
+              "cli",
+              "interval",
+              "manual",
+              "upload",
+              "fetch"
+            ],
+            "title": "Trigger"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "files_seen": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Files Seen"
+          },
+          "files_read": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Files Read"
+          },
+          "records_new": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Records New"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "fetch_result": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "saved",
+                  "duplicate",
+                  "failed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fetch Result"
+          },
+          "fetch_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fetch Error"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/RunFileInfo"
+            },
+            "type": "array",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "trigger",
+          "started_at",
+          "finished_at",
+          "files_seen",
+          "files_read",
+          "records_new",
+          "error",
+          "fetch_result",
+          "fetch_error",
+          "files"
+        ],
+        "title": "LastRunInfo",
+        "description": "The newest run in the import log with the files it read, not the unchanged ones."
+      },
+      "LayoutInfo": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "sub_version": {
+            "type": "integer",
+            "title": "Sub Version"
+          },
+          "fields": {
+            "type": "integer",
+            "title": "Fields"
+          },
+          "files": {
+            "type": "integer",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "version",
+          "sub_version",
+          "fields",
+          "files"
+        ],
+        "title": "LayoutInfo"
+      },
+      "MetaResponse": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TimeRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "import": {
+            "$ref": "#/components/schemas/ImportInfo"
+          },
+          "layouts": {
+            "items": {
+              "$ref": "#/components/schemas/LayoutInfo"
+            },
+            "type": "array",
+            "title": "Layouts"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/FieldInfo"
+            },
+            "type": "array",
+            "title": "Fields"
+          },
+          "firmware": {
+            "items": {
+              "$ref": "#/components/schemas/FirmwareInfo"
+            },
+            "type": "array",
+            "title": "Firmware"
+          },
+          "gaps": {
+            "items": {
+              "$ref": "#/components/schemas/GapInfo"
+            },
+            "type": "array",
+            "title": "Gaps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "range",
+          "import",
+          "layouts",
+          "fields",
+          "firmware",
+          "gaps"
+        ],
+        "title": "MetaResponse",
+        "description": "What the frontend needs to know about this installation and its stock."
+      },
+      "Phases": {
+        "properties": {
+          "min": {
+            "type": "number",
+            "title": "Min"
+          },
+          "mean": {
+            "type": "number",
+            "title": "Mean"
+          },
+          "max": {
+            "type": "number",
+            "title": "Max"
+          }
+        },
+        "type": "object",
+        "required": [
+          "min",
+          "mean",
+          "max"
+        ],
+        "title": "Phases",
+        "description": "Seconds of the complete phases of a bit."
+      },
+      "Preset": {
+        "properties": {
+          "preset": {
+            "$ref": "#/components/schemas/PresetName"
+          }
+        },
+        "type": "object",
+        "required": [
+          "preset"
+        ],
+        "title": "Preset",
+        "description": "A range relative to the last record of the stock: quick choice or calendar period."
+      },
+      "PresetName": {
+        "type": "string",
+        "enum": [
+          "h48",
+          "d7",
+          "d30",
+          "y1",
+          "all",
+          "today",
+          "yesterday",
+          "week",
+          "last_week",
+          "month",
+          "last_month",
+          "quarter",
+          "last_quarter",
+          "year",
+          "last_year"
+        ]
+      },
+      "RunColumns": {
+        "properties": {
+          "start": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Start"
+          },
+          "end": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "End"
+          },
+          "start_known": {
+            "items": {
+              "type": "boolean"
+            },
+            "type": "array",
+            "title": "Start Known"
+          },
+          "complete": {
+            "items": {
+              "type": "boolean"
+            },
+            "type": "array",
+            "title": "Complete"
+          },
+          "pause_s": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Pause S"
+          },
+          "heating_s": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Heating S"
+          },
+          "dhw_s": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Dhw S"
+          },
+          "kind": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "heating",
+                "dhw",
+                "mixed"
+              ]
+            },
+            "type": "array",
+            "title": "Kind"
+          },
+          "defrosts": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Defrosts"
+          },
+          "heat_flow_kwh": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Heat Flow Kwh"
+          },
+          "heat_reported_kwh": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Heat Reported Kwh"
+          },
+          "electric_kwh": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Electric Kwh"
+          },
+          "cop_flow": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Cop Flow"
+          },
+          "cop_reported": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Cop Reported"
+          },
+          "outdoor_mean": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Outdoor Mean"
+          },
+          "flow_mean": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Flow Mean"
+          },
+          "flow_end": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Flow End"
+          },
+          "return_mean": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Return Mean"
+          },
+          "spread_heating_mean": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Spread Heating Mean"
+          },
+          "source_in_mean": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Source In Mean"
+          },
+          "source_out_mean": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Source Out Mean"
+          },
+          "spread_source_mean": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Spread Source Mean"
+          },
+          "evu_stop": {
+            "items": {
+              "type": "boolean"
+            },
+            "type": "array",
+            "title": "Evu Stop"
+          },
+          "after_evu": {
+            "items": {
+              "type": "boolean"
+            },
+            "type": "array",
+            "title": "After Evu"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start",
+          "end",
+          "start_known",
+          "complete",
+          "pause_s",
+          "heating_s",
+          "dhw_s",
+          "kind",
+          "defrosts",
+          "heat_flow_kwh",
+          "heat_reported_kwh",
+          "electric_kwh",
+          "cop_flow",
+          "cop_reported",
+          "outdoor_mean",
+          "flow_mean",
+          "flow_end",
+          "return_mean",
+          "spread_heating_mean",
+          "source_in_mean",
+          "source_out_mean",
+          "spread_source_mean",
+          "evu_stop",
+          "after_evu"
+        ],
+        "title": "RunColumns",
+        "description": "Compressor runs in order of their start, one column per property."
+      },
+      "RunFileInfo": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "path",
+              "upload",
+              "fetch"
+            ],
+            "title": "Source"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "invalid",
+              "error"
+            ],
+            "title": "Status"
+          },
+          "new_records": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Records"
+          },
+          "conflicts": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conflicts"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "removed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Removed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "name",
+          "status",
+          "new_records",
+          "conflicts",
+          "reason",
+          "removed_at"
+        ],
+        "title": "RunFileInfo"
+      },
+      "RunInfo": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "trigger": {
+            "type": "string",
+            "enum": [
+              "cli",
+              "interval",
+              "manual",
+              "upload",
+              "fetch"
+            ],
+            "title": "Trigger"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "files_seen": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Files Seen"
+          },
+          "files_read": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Files Read"
+          },
+          "records_new": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Records New"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "fetch_result": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "saved",
+                  "duplicate",
+                  "failed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fetch Result"
+          },
+          "fetch_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fetch Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "trigger",
+          "started_at",
+          "finished_at",
+          "files_seen",
+          "files_read",
+          "records_new",
+          "error",
+          "fetch_result",
+          "fetch_error"
+        ],
+        "title": "RunInfo"
+      },
+      "Sections": {
+        "properties": {
+          "start": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Start",
+            "description": "Beginn je Abschnitt, Unix-Sekunden, inklusive"
+          },
+          "end": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "End",
+            "description": "Ende je Abschnitt, Unix-Sekunden, exklusive"
+          },
+          "value": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Value",
+            "description": "Code je Abschnitt"
+          },
+          "text": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Text",
+            "description": "Je Abschnitt der Index in `texts` der Kurve, null ohne Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start",
+          "end",
+          "value",
+          "text"
+        ],
+        "title": "Sections",
+        "description": "The runs of a state, equally long arrays ordered by `start`."
+      },
+      "SeriesResponse": {
+        "properties": {
+          "from": {
+            "type": "integer",
+            "title": "From"
+          },
+          "to": {
+            "type": "integer",
+            "title": "To"
+          },
+          "resolution": {
+            "type": "string",
+            "enum": [
+              "raw",
+              "bucket"
+            ],
+            "title": "Resolution"
+          },
+          "bucket_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bucket Seconds"
+          },
+          "ts": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Ts"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/Curve"
+            },
+            "type": "array",
+            "title": "Series"
+          },
+          "gaps": {
+            "items": {
+              "$ref": "#/components/schemas/Gap"
+            },
+            "type": "array",
+            "title": "Gaps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "resolution",
+          "bucket_seconds",
+          "ts",
+          "series",
+          "gaps"
+        ],
+        "title": "SeriesResponse"
+      },
+      "SourceCounts": {
+        "properties": {
+          "path": {
+            "type": "integer",
+            "title": "Path"
+          },
+          "upload": {
+            "type": "integer",
+            "title": "Upload"
+          },
+          "fetch": {
+            "type": "integer",
+            "title": "Fetch"
+          }
+        },
+        "type": "object",
+        "required": [
+          "path",
+          "upload",
+          "fetch"
+        ],
+        "title": "SourceCounts"
+      },
+      "SourceInfo": {
+        "properties": {
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "reachable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reachable"
+          },
+          "interval_min": {
+            "type": "integer",
+            "title": "Interval Min"
+          },
+          "next_run": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Run"
+          }
+        },
+        "type": "object",
+        "required": [
+          "path",
+          "reachable",
+          "interval_min",
+          "next_run"
+        ],
+        "title": "SourceInfo",
+        "description": "`path` is null without a source; `next_run` is null while a run is going or without a beat."
+      },
+      "StatsResponse": {
+        "properties": {
+          "from": {
+            "type": "integer",
+            "title": "From"
+          },
+          "to": {
+            "type": "integer",
+            "title": "To"
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week",
+              "month"
+            ],
+            "title": "Period"
+          },
+          "start": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Start"
+          },
+          "end": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "End"
+          },
+          "partial": {
+            "items": {
+              "type": "boolean"
+            },
+            "type": "array",
+            "title": "Partial"
+          },
+          "records": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Records"
+          },
+          "covered_s": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Covered S"
+          },
+          "run_s": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Run S"
+          },
+          "run_dhw_s": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Run Dhw S"
+          },
+          "starts": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Starts"
+          },
+          "runs_incomplete": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Runs Incomplete"
+          },
+          "defrosts": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Defrosts"
+          },
+          "defrost_s": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Defrost S"
+          },
+          "aux_heater_s": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Aux Heater S"
+          },
+          "heat_flow_kwh": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Heat Flow Kwh"
+          },
+          "heat_reported_kwh": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Heat Reported Kwh"
+          },
+          "electric_kwh": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Electric Kwh"
+          },
+          "cop_flow": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Cop Flow"
+          },
+          "cop_reported": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Cop Reported"
+          },
+          "outdoor_mean": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Outdoor Mean"
+          },
+          "outdoor_min": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Outdoor Min"
+          },
+          "outdoor_max": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Outdoor Max"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StatsTotal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "period",
+          "start",
+          "end",
+          "partial",
+          "records",
+          "covered_s",
+          "run_s",
+          "run_dhw_s",
+          "starts",
+          "runs_incomplete",
+          "defrosts",
+          "defrost_s",
+          "aux_heater_s",
+          "heat_flow_kwh",
+          "heat_reported_kwh",
+          "electric_kwh",
+          "cop_flow",
+          "cop_reported",
+          "outdoor_mean",
+          "outdoor_min",
+          "outdoor_max",
+          "total"
+        ],
+        "title": "StatsResponse",
+        "description": "One column per figure, as long as `start`."
+      },
+      "StatsTotal": {
+        "properties": {
+          "covered_s": {
+            "type": "integer",
+            "title": "Covered S"
+          },
+          "run_s": {
+            "type": "integer",
+            "title": "Run S"
+          },
+          "run_dhw_s": {
+            "type": "integer",
+            "title": "Run Dhw S"
+          },
+          "starts": {
+            "type": "integer",
+            "title": "Starts"
+          },
+          "runs_incomplete": {
+            "type": "integer",
+            "title": "Runs Incomplete"
+          },
+          "defrosts": {
+            "type": "integer",
+            "title": "Defrosts"
+          },
+          "defrost_s": {
+            "type": "integer",
+            "title": "Defrost S"
+          },
+          "aux_heater_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aux Heater S"
+          },
+          "heat_flow_kwh": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heat Flow Kwh"
+          },
+          "heat_reported_kwh": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heat Reported Kwh"
+          },
+          "electric_kwh": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Electric Kwh"
+          },
+          "cop_flow": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cop Flow"
+          },
+          "cop_reported": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cop Reported"
+          },
+          "outdoor_mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outdoor Mean"
+          }
+        },
+        "type": "object",
+        "required": [
+          "covered_s",
+          "run_s",
+          "run_dhw_s",
+          "starts",
+          "runs_incomplete",
+          "defrosts",
+          "defrost_s",
+          "aux_heater_s",
+          "heat_flow_kwh",
+          "heat_reported_kwh",
+          "electric_kwh",
+          "cop_flow",
+          "cop_reported",
+          "outdoor_mean"
+        ],
+        "title": "StatsTotal",
+        "description": "The whole range, by the same rules as one period."
+      },
+      "StatusCounts": {
+        "properties": {
+          "ok": {
+            "type": "integer",
+            "title": "Ok"
+          },
+          "invalid": {
+            "type": "integer",
+            "title": "Invalid"
+          },
+          "error": {
+            "type": "integer",
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok",
+          "invalid",
+          "error"
+        ],
+        "title": "StatusCounts"
+      },
+      "Texts": {
+        "properties": {
+          "de": {
+            "type": "string",
+            "title": "De"
+          },
+          "en": {
+            "type": "string",
+            "title": "En"
+          }
+        },
+        "type": "object",
+        "required": [
+          "de",
+          "en"
+        ],
+        "title": "Texts"
+      },
+      "TimeRange": {
+        "properties": {
+          "first_ts": {
+            "type": "integer",
+            "title": "First Ts"
+          },
+          "last_ts": {
+            "type": "integer",
+            "title": "Last Ts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "first_ts",
+          "last_ts"
+        ],
+        "title": "TimeRange"
+      },
+      "UnchangedField": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "analog",
+              "enum",
+              "bit"
+            ],
+            "title": "Kind"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "covered": {
+            "type": "number",
+            "title": "Covered"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "codes": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Codes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "kind",
+          "value",
+          "covered",
+          "text",
+          "codes"
+        ],
+        "title": "UnchangedField",
+        "description": "A field whose value did not change in the range; `value` is the raw code for a state.\n\n`text` is the display text of that state, null for any other kind and for a state without text.\n`codes` are the codes of that state in the order of their first appearance (several when one\ntext covers more codes), empty for any other kind."
+      },
+      "UploadAnswer": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "stored",
+              "duplicate"
+            ],
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "status"
+        ],
+        "title": "UploadAnswer",
+        "description": "`name` is the stored name, for a duplicate the name already stored or logged."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "View": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "charts": {
+            "items": {
+              "items": {
+                "$ref": "#/components/schemas/Item"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Charts"
+          },
+          "signals": {
+            "items": {
+              "$ref": "#/components/schemas/Item"
+            },
+            "type": "array",
+            "title": "Signals"
+          },
+          "signals_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signals At"
+          },
+          "range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Preset"
+              },
+              {
+                "$ref": "#/components/schemas/Fixed"
+              }
+            ],
+            "title": "Range"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "builtin": {
+            "type": "boolean",
+            "title": "Builtin"
+          },
+          "start": {
+            "type": "boolean",
+            "title": "Start"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "charts",
+          "signals",
+          "range",
+          "id",
+          "builtin",
+          "start"
+        ],
+        "title": "View"
+      },
+      "ViewIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "charts": {
+            "items": {
+              "items": {
+                "$ref": "#/components/schemas/Item"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Charts"
+          },
+          "signals": {
+            "items": {
+              "$ref": "#/components/schemas/Item"
+            },
+            "type": "array",
+            "title": "Signals"
+          },
+          "signals_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signals At"
+          },
+          "range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Preset"
+              },
+              {
+                "$ref": "#/components/schemas/Fixed"
+              }
+            ],
+            "title": "Range"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "charts",
+          "signals",
+          "range"
+        ],
+        "title": "ViewIn"
+      },
+      "ViewPatch": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "charts": {
+            "anyOf": [
+              {
+                "items": {
+                  "items": {
+                    "$ref": "#/components/schemas/Item"
+                  },
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Charts"
+          },
+          "signals": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Item"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signals"
+          },
+          "signals_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signals At"
+          },
+          "range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Preset"
+              },
+              {
+                "$ref": "#/components/schemas/Fixed"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Range"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start"
+          }
+        },
+        "type": "object",
+        "title": "ViewPatch",
+        "description": "Any parts of a view; fields left out stay as they are."
+      },
+      "ViewsResponse": {
+        "properties": {
+          "views": {
+            "items": {
+              "$ref": "#/components/schemas/View"
+            },
+            "type": "array",
+            "title": "Views"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Problem"
+          },
+          "writable": {
+            "type": "boolean",
+            "title": "Writable"
+          }
+        },
+        "type": "object",
+        "required": [
+          "views",
+          "problem",
+          "writable"
+        ],
+        "title": "ViewsResponse",
+        "description": "Shipped views first, then own ones by name; `problem` names what views.json got wrong.\n\n`writable` is false only when views.json cannot be read, then every write answers 503."
+      }
+    }
+  }
+}

@@ -1,0 +1,1106 @@
+{
+  "uid": "dtaluchs-uebersicht",
+  "title": "dtaluchs Übersicht",
+  "tags": [
+    "dtaluchs"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 41,
+  "time": {
+    "from": "now-7d/d",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "ds",
+        "label": "Datenquelle",
+        "type": "datasource",
+        "query": "yesoreyeram-infinity-datasource",
+        "current": {},
+        "hide": 0
+      },
+      {
+        "name": "feld",
+        "label": "Feld",
+        "type": "query",
+        "datasource": {
+          "type": "yesoreyeram-infinity-datasource",
+          "uid": "${ds}"
+        },
+        "query": {
+          "queryType": "infinity",
+          "infinityQuery": {
+            "refId": "variable",
+            "type": "json",
+            "source": "url",
+            "format": "table",
+            "parser": "jq-backend",
+            "url": "/api/meta",
+            "url_options": {
+              "method": "GET"
+            },
+            "root_selector": "[.fields[] | select(.kind == \"analog\") | {__text: (.label.de + (if .unit then \" [\" + .unit + \"]\" else \"\" end)), __value: .id}]",
+            "columns": [
+              {
+                "selector": "__text",
+                "text": "__text",
+                "type": "string"
+              },
+              {
+                "selector": "__value",
+                "text": "__value",
+                "type": "string"
+              }
+            ],
+            "filters": []
+          }
+        },
+        "refresh": 1,
+        "multi": true,
+        "includeAll": false,
+        "sort": 1,
+        "current": {
+          "text": [
+            "Heißgastemperatur [°C]"
+          ],
+          "value": [
+            "hot_gas_temp"
+          ]
+        }
+      },
+      {
+        "name": "period",
+        "label": "Zeitraum der Kennzahlen",
+        "type": "custom",
+        "query": "Tag : day,Woche : week,Monat : month",
+        "current": {
+          "text": "Tag",
+          "value": "day"
+        },
+        "options": [
+          {
+            "text": "Tag",
+            "value": "day",
+            "selected": true
+          },
+          {
+            "text": "Woche",
+            "value": "week",
+            "selected": false
+          },
+          {
+            "text": "Monat",
+            "value": "month",
+            "selected": false
+          }
+        ],
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Temperaturen",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "${ds}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "${ds}"
+          },
+          "type": "json",
+          "source": "url",
+          "format": "timeseries",
+          "parser": "jq-backend",
+          "url": "/api/series",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "from",
+                "value": "${__from:date:seconds}"
+              },
+              {
+                "key": "to",
+                "value": "${__to:date:seconds}"
+              },
+              {
+                "key": "fields",
+                "value": "flow_temp"
+              },
+              {
+                "key": "fields",
+                "value": "return_temp"
+              },
+              {
+                "key": "fields",
+                "value": "outdoor_temp"
+              },
+              {
+                "key": "points",
+                "value": "1000"
+              }
+            ]
+          },
+          "root_selector": ". as $d | ($d.series[] | select(.field == \"flow_temp\") | .value) as $flow_temp | ($d.series[] | select(.field == \"return_temp\") | .value) as $return_temp | ($d.series[] | select(.field == \"outdoor_temp\") | .value) as $outdoor_temp | [range(0; $d.ts | length) as $i | {time: $d.ts[$i], flow_temp: $flow_temp[$i], return_temp: $return_temp[$i], outdoor_temp: $outdoor_temp[$i]}]",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Zeit",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "flow_temp",
+              "text": "Vorlauf",
+              "type": "number"
+            },
+            {
+              "selector": "return_temp",
+              "text": "Rücklauf",
+              "type": "number"
+            },
+            {
+              "selector": "outdoor_temp",
+              "text": "Außen",
+              "type": "number"
+            }
+          ],
+          "filters": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "spanNulls": false,
+            "showPoints": "never"
+          },
+          "unit": "celsius"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Vorlauf"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#e66767"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Rücklauf"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#3987e5"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Außen"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#a3a3a3"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Hat der Zeitraum mehr als 2000 Einträge, verdichtet das Werkzeug auf rund 1000 Intervalle und liefert je Intervall das Mittel."
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Verdichter läuft",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "${ds}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 24,
+        "h": 5
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "${ds}"
+          },
+          "type": "json",
+          "source": "url",
+          "format": "timeseries",
+          "parser": "jq-backend",
+          "url": "/api/series",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "from",
+                "value": "${__from:date:seconds}"
+              },
+              {
+                "key": "to",
+                "value": "${__to:date:seconds}"
+              },
+              {
+                "key": "fields",
+                "value": "compressor_1"
+              },
+              {
+                "key": "points",
+                "value": "1000"
+              }
+            ]
+          },
+          "root_selector": ". as $d | ($d.series[] | select(.field == \"compressor_1\") | .value) as $compressor_1 | [range(0; $d.ts | length) as $i | {time: $d.ts[$i], compressor_1: $compressor_1[$i]}]",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Zeit",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "compressor_1",
+              "text": "Verdichter",
+              "type": "number"
+            }
+          ],
+          "filters": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "spanNulls": false,
+            "showPoints": "never",
+            "fillOpacity": 40,
+            "lineInterpolation": "stepAfter"
+          },
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Verdichter"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#3987e5"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Anteil der Einträge je Intervall, in denen der Verdichter lief. Ungefiltert 0 oder 100 %."
+    },
+    {
+      "id": 8,
+      "type": "state-timeline",
+      "title": "Betriebszustand",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "${ds}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 24,
+        "h": 5
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "${ds}"
+          },
+          "type": "json",
+          "source": "url",
+          "format": "timeseries",
+          "parser": "jq-backend",
+          "url": "/api/series",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "from",
+                "value": "${__from:date:seconds}"
+              },
+              {
+                "key": "to",
+                "value": "${__to:date:seconds}"
+              },
+              {
+                "key": "fields",
+                "value": "operating_state"
+              },
+              {
+                "key": "points",
+                "value": "4000"
+              }
+            ]
+          },
+          "root_selector": ". as $d | $d.series[0] as $s | if $s.sections == null then [range(0; $d.ts | length) as $i | {time: $d.ts[$i], zustand: (if $s.value[$i] == null then null elif $s.text[$i] == null then ($s.value[$i] | floor | tostring) else $s.texts[$s.text[$i]] end)}] else $s.sections as $c | [range(0; $c.start | length) as $i | {time: $c.start[$i], zustand: (if $c.text[$i] == null then ($c.value[$i] | floor | tostring) else $s.texts[$c.text[$i]] end)}, (if $i == ($c.start | length) - 1 or $c.end[$i] < $c.start[$i + 1] then {time: $c.end[$i], zustand: null} else empty end)] end",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Zeit",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "zustand",
+              "text": "Betriebszustand",
+              "type": "string"
+            }
+          ],
+          "filters": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 0,
+            "fillOpacity": 100,
+            "spanNulls": false
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#a3a3a3"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "Heizen": {
+                  "color": "#3987e5",
+                  "index": 0
+                },
+                "Warmwasser": {
+                  "color": "#d95926",
+                  "index": 1
+                },
+                "Abtauen": {
+                  "color": "#199e70",
+                  "index": 2
+                },
+                "keine Anforderung": {
+                  "color": "#6b6b6b",
+                  "index": 3
+                },
+                "EVU-Sperre": {
+                  "color": "#c9a227",
+                  "index": 4
+                },
+                "Schwimmbad": {
+                  "color": "#d55181",
+                  "index": 5
+                },
+                "Kühlung": {
+                  "color": "#9085e9",
+                  "index": 6
+                },
+                "Externe Energiequelle": {
+                  "color": "#e66767",
+                  "index": 7
+                }
+              }
+            }
+          ],
+          "displayName": " "
+        },
+        "overrides": []
+      },
+      "options": {
+        "mergeValues": true,
+        "showValue": "never",
+        "alignValue": "left",
+        "rowHeight": 0.9,
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "description": "Was die Anlage tut, jeder Abschnitt mit Beginn und Ende, auch ein Abtauen von 2 Minuten in einem Jahr. Hat ein Zustand im Zeitraum mehr als 8000 Abschnitte, steht je Intervall der häufigste: kurze fallen dann weg, ihre Zahl zeigt „Starts und Abtauungen“. Siehe docs/anleitung-grafana.md."
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "${feld:text}",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "${ds}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 19,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "${ds}"
+          },
+          "type": "json",
+          "source": "url",
+          "format": "timeseries",
+          "parser": "jq-backend",
+          "url": "/api/series",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "from",
+                "value": "${__from:date:seconds}"
+              },
+              {
+                "key": "to",
+                "value": "${__to:date:seconds}"
+              },
+              {
+                "key": "fields",
+                "value": "${feld}"
+              },
+              {
+                "key": "points",
+                "value": "1000"
+              }
+            ]
+          },
+          "root_selector": ". as $d | $d.series[0] as $s | [range(0; $d.ts | length) as $i | {time: $d.ts[$i], value: $s.value[$i], min: ($s.min // [])[$i], max: ($s.max // [])[$i]}]",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Zeit",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "value",
+              "text": "Mittel",
+              "type": "number"
+            },
+            {
+              "selector": "min",
+              "text": "min",
+              "type": "number"
+            },
+            {
+              "selector": "max",
+              "text": "max",
+              "type": "number"
+            }
+          ],
+          "filters": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "spanNulls": false,
+            "showPoints": "never"
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3987e5"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max"
+            },
+            "properties": [
+              {
+                "id": "custom.fillBelowTo",
+                "value": "min"
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 0
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 25
+              },
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": true,
+                  "tooltip": false,
+                  "viz": false
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "min"
+            },
+            "properties": [
+              {
+                "id": "custom.lineWidth",
+                "value": 0
+              },
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": true,
+                  "tooltip": false,
+                  "viz": false
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Mittel, dazu min und max je Intervall als Band. Feld oben unter „Feld“ wählen, mehrere ergeben je ein Panel.",
+      "repeat": "feld",
+      "repeatDirection": "h",
+      "maxPerRow": 2
+    },
+    {
+      "id": 4,
+      "type": "barchart",
+      "title": "Wärme und Strom je ${period:text}",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "${ds}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 27,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "${ds}"
+          },
+          "type": "json",
+          "source": "url",
+          "format": "timeseries",
+          "parser": "jq-backend",
+          "url": "/api/stats",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "from",
+                "value": "${__from:date:seconds}"
+              },
+              {
+                "key": "to",
+                "value": "${__to:date:seconds}"
+              },
+              {
+                "key": "period",
+                "value": "${period}"
+              }
+            ]
+          },
+          "root_selector": "[range(0; .start | length) as $i | {time: .start[$i], heat_flow_kwh: .heat_flow_kwh[$i], heat_reported_kwh: .heat_reported_kwh[$i], electric_kwh: .electric_kwh[$i], cop_flow: .cop_flow[$i], cop_reported: .cop_reported[$i], starts: .starts[$i], defrosts: .defrosts[$i], run_h: (.run_s[$i] / 3600)}]",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Zeit",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "heat_flow_kwh",
+              "text": "Wärme Durchfluss [kWh]",
+              "type": "number"
+            },
+            {
+              "selector": "heat_reported_kwh",
+              "text": "Wärme Kennfeld [kWh]",
+              "type": "number"
+            },
+            {
+              "selector": "electric_kwh",
+              "text": "Strom [kWh]",
+              "type": "number"
+            },
+            {
+              "selector": "cop_flow",
+              "text": "AZ Durchfluss",
+              "type": "number"
+            },
+            {
+              "selector": "cop_reported",
+              "text": "AZ Kennfeld",
+              "type": "number"
+            },
+            {
+              "selector": "starts",
+              "text": "Starts",
+              "type": "number"
+            },
+            {
+              "selector": "run_h",
+              "text": "Laufzeit [h]",
+              "type": "number"
+            },
+            {
+              "selector": "defrosts",
+              "text": "Abtauungen",
+              "type": "number"
+            }
+          ],
+          "filters": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "fillOpacity": 85,
+            "lineWidth": 0
+          },
+          "unit": "kwatth"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Wärme Durchfluss [kWh]"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#008300"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Wärme Kennfeld [kWh]"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#7fc17f"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Strom [kWh]"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#9085e9"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        },
+        "xField": "Zeit",
+        "orientation": "vertical",
+        "groupWidth": 0.8,
+        "barWidth": 0.9,
+        "stacking": "none",
+        "showValue": "never",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 100
+      },
+      "description": "Wärme aus Durchfluss und Spreizung und laut Steuerung (Kennfeld). Strom: nur der Verdichter. Der erste und der letzte Zeitraum können angeschnitten sein. Die Panels darunter nehmen das Ergebnis dieser Abfrage.",
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "Zeit",
+                "Wärme Durchfluss [kWh]",
+                "Wärme Kennfeld [kWh]",
+                "Strom [kWh]"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Arbeitszahl je ${period:text}",
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Dashboard --"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 27,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "datasource",
+            "uid": "-- Dashboard --"
+          },
+          "panelId": 4
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 2,
+            "spanNulls": false,
+            "showPoints": "always",
+            "pointSize": 6
+          },
+          "decimals": 2
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "AZ Durchfluss"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#008300"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "AZ Kennfeld"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#008300"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    6,
+                    4
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Wärme durch Strom über den Zeitraum. Ohne Strom keine Arbeitszahl.",
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "Zeit",
+                "AZ Durchfluss",
+                "AZ Kennfeld"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "barchart",
+      "title": "Starts und Abtauungen je ${period:text}",
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Dashboard --"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 35,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "datasource",
+            "uid": "-- Dashboard --"
+          },
+          "panelId": 4
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "fillOpacity": 85,
+            "lineWidth": 0
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Starts"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#d55181"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Abtauungen"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#199e70"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        },
+        "xField": "Zeit",
+        "orientation": "vertical",
+        "groupWidth": 0.8,
+        "barWidth": 0.9,
+        "stacking": "none",
+        "showValue": "never",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 100
+      },
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "Zeit",
+                "Starts",
+                "Abtauungen"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "barchart",
+      "title": "Laufzeit je ${period:text}",
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Dashboard --"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 35,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "datasource",
+            "uid": "-- Dashboard --"
+          },
+          "panelId": 4
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "fillOpacity": 85,
+            "lineWidth": 0
+          },
+          "unit": "suffix: h"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Laufzeit [h]"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#3987e5"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        },
+        "xField": "Zeit",
+        "orientation": "vertical",
+        "groupWidth": 0.8,
+        "barWidth": 0.9,
+        "stacking": "none",
+        "showValue": "never",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 100
+      },
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "Zeit",
+                "Laufzeit [h]"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "description": "Werte aus dtaluchs über die Datasource Infinity, siehe docs/anleitung-grafana.md"
+}

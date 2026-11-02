@@ -1,0 +1,31 @@
+# App for Home Assistant OS. version equals backend/pyproject.toml,
+# it is also the tag of the image the Dockerfile builds on.
+name: "DTA-Luchs"
+version: "0.5.8"
+slug: "dtaluchs"
+description: "Auswertung der DTA-Dateien einer Wärmepumpe: Zeitreihen, Läufe, Kennzahlen"
+url: "https://github.com/siedi/dtaluchs"
+arch:
+  - aarch64
+  - amd64
+# The image has no init of its own; Docker puts one in front that passes SIGTERM on to the server
+init: true
+ingress: true
+ingress_port: 8470
+panel_icon: "mdi:heat-pump"
+panel_title: "DTA-Luchs"
+# The server aborts a running import after 10 s; the Supervisor's default is 10 s
+timeout: 15
+# Connections only from the Supervisor, as Home Assistant requires for Ingress
+environment:
+  ALLOW_FROM: "172.30.32.2"
+tmpfs: true
+# Stopped, meta.duckdb and Parquet stay unchanged during the backup; tmp/ holds DuckDB spills
+backup: cold
+backup_exclude:
+  - "tmp/*"
+watchdog: "http://[HOST]:[PORT:8470]/"
+options: {}
+schema:
+  timezone: "str?"
+  duckdb_memory_mb: "int(64,)?"

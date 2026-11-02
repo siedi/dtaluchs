@@ -1,0 +1,57 @@
+# dtaluchs with Docker Compose: docker compose up -d, then http://<host>:8470 in the browser.
+#
+# Before the first start:
+# - Enter the path to the DTA source under volumes (instead of ./dta). It is only read.
+# - Create the data folder and give it to the container's UID (10001):
+#     mkdir data && sudo chown -R 10001:10001 data
+#   An existing data folder needs -R: meta.duckdb and upload/ must belong to the UID as well.
+#   Or set user: below to your own UID. If ./data is missing, Docker on Linux creates the folder for
+#   root. The container then exits with code 2 and restarts again and again because of restart;
+#   docker compose logs names folder and UID.
+# - Do not run ./dtaluchs serve on the same data folder at the same time, two processes on one
+#   DuckDB file block each other.
+#
+# The tool has no login. Port 8470 is reachable from the whole network, so run it only in your home
+# network or behind a proxy with authentication.
+# Under a sub-path such as /dtaluchs/, the proxy strips it and passes it in the header
+# X-Forwarded-Prefix (Traefik with stripPrefix does so by itself, nginx with
+# proxy_set_header X-Forwarded-Prefix /dtaluchs;).
+#
+# Under Proxmox the VM needs a CPU type with AVX2 (x86-64-v3 or host), the default type lacks it.
+# Check inside the VM: grep -c avx2 /proc/cpuinfo. Without it the server does not start and names the
+# missing instruction sets.
+#
+# Paths and values live here, not in a .env.
+
+services:
+  dtaluchs:
+    build: .
+    image: dtaluchs
+    # Different UID for data folders owned by another user
+    # user: "1000:1000"
+    ports:
+      - "8470:8470"
+    volumes:
+      # Stock: Parquet, meta.duckdb and uploaded files, survives every update of the image
+      - ./data:/data
+      # DTA source, read-only
+      - ./dta:/dta:ro
+    environment:
+      DTA_SOURCE_DIR: /dta
+      # Time zone of the heat pump (IANA name); all times and the boundaries of the figures apply in it
+      # TIMEZONE: Europe/Berlin
+      # Minutes between two import runs, 0 turns the interval off
+      IMPORT_INTERVAL_MIN: "15"
+      # Memory in MB and threads per DuckDB instance. Server and import each have one for queries
+      # and a small one for meta.duckdb. Lower them on a small device. Spills go to /data/tmp,
+      # with DUCKDB_TEMP_DIR to <folder>/tmp (then mount it as a volume, never share it with
+      # another container).
+      # DUCKDB_MEMORY_MB: "1024"
+      # DUCKDB_THREADS: "4"
+      # DUCKDB_TEMP_DIR: /spill
+    read_only: true
+    tmpfs:
+      - /tmp
+    restart: unless-stopped
+    # The server aborts a running import after 10 s; Docker waits longer
+    stop_grace_period: 15s

@@ -1,0 +1,40 @@
+# Mitgelieferte Ansichten der Zeitreihen.
+#
+# Regeln:
+# - Feld-IDs stammen aus core/catalog/fields.yaml; ein Test prüft, dass jede dort steht.
+# - Pro Diagramm stehen die Felder der linken Einheit zuerst, dann die der rechten: die Achse folgt
+#   aus der Reihenfolge der Einheiten und wird nicht gespeichert.
+# - `slot` zählt je Diagramm und im Signalbereich ab 0. `signals_at` fehlt: Signalbereich unten.
+# - Die IDs der Ansichten sind stabil, auf sie zeigt die Startmarkierung in views.json.
+
+version: 1
+views:
+- id: std-heizkreis
+  name: Heizkreis
+  range: {preset: h48}
+  charts:
+  - [{id: flow_temp, slot: 0}, {id: flow_target, slot: 1}, {id: return_temp, slot: 2}, {id: outdoor_temp, slot: 3}, {id: flow_rate, slot: 4}]
+  - [{id: compressor_speed, slot: 0}, {id: compressor_power, slot: 1}]
+  signals: [{id: compressor_1, slot: 0}, {id: heating_pump, slot: 1}, {id: aux_heater_1, slot: 2}, {id: operating_state, slot: 3}]
+- id: std-kaeltekreis
+  name: Kältekreis
+  range: {preset: h48}
+  charts:
+  - [{id: hot_gas_temp, slot: 0}, {id: evaporation_temp, slot: 1}, {id: condensation_temp, slot: 2}, {id: compressor_suction_temp, slot: 3}]
+  - [{id: high_pressure, slot: 0}, {id: low_pressure, slot: 1}, {id: superheat, slot: 2}]
+  - [{id: compressor_speed, slot: 0}]
+  signals: [{id: compressor_1, slot: 0}, {id: defrost_valve, slot: 1}, {id: compressor_heater, slot: 2}]
+- id: std-abtauung
+  name: Abtauung
+  range: {preset: h48}
+  charts:
+  - [{id: outdoor_temp, slot: 0}, {id: flow_temp, slot: 1}, {id: return_temp, slot: 2}, {id: evaporation_temp, slot: 3}, {id: flow_rate, slot: 4}]
+  - [{id: compressor_speed, slot: 0}]
+  signals: [{id: defrost_valve, slot: 0}, {id: compressor_1, slot: 1}, {id: fan_or_source_pump, slot: 2}, {id: defrost_brine_flow_switch, slot: 3}]
+- id: std-warmwasser
+  name: Warmwasser
+  range: {preset: d7}
+  charts:
+  - [{id: dhw_temp, slot: 0}, {id: dhw_target, slot: 1}, {id: flow_temp, slot: 2}]
+  - [{id: compressor_speed, slot: 0}, {id: compressor_power, slot: 1}]
+  signals: [{id: compressor_1, slot: 0}, {id: dhw_pump, slot: 1}, {id: aux_heater_1, slot: 2}, {id: circulation_pump, slot: 3}]

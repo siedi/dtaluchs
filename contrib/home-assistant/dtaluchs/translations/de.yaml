@@ -1,0 +1,7 @@
+configuration:
+  timezone:
+    name: "Zeitzone der Anlage"
+    description: "IANA-Name, etwa Europe/Berlin. Leer: die Zeitzone von Home Assistant."
+  duckdb_memory_mb:
+    name: "Speicher für Abfragen (MB)"
+    description: "Grenze je DuckDB-Instanz. Leer: die Vorgabe von DTA-Luchs. Auf einem kleinen Gerät herabsetzen."

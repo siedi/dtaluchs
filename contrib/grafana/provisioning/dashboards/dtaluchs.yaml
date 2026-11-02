@@ -1,0 +1,10 @@
+apiVersion: 1
+
+providers:
+  - name: dtaluchs
+    folder: dtaluchs
+    type: file
+    # Save changes in the user interface as a copy ("Save as"); this version comes from the repo
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards

@@ -1,0 +1,42 @@
+name: Bug report
+description: Something does not work as expected. English or German welcome.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version of DTA-Luchs
+      description: For example 0.5.8, the image tag or the version of the Home Assistant app.
+    validations:
+      required: true
+  - type: dropdown
+    id: setup
+    attributes:
+      label: How do you run it?
+      options:
+        - Docker / Docker Compose
+        - Home Assistant app
+        - Without Docker (./dtaluchs serve)
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: Firmware of the controller
+      description: The overview page shows it under Bestand (stock), for example V3.92.3.
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: The relevant lines from `docker compose logs`, the log of the Home Assistant app or the terminal.
+      render: text
+  - type: markdown
+    attributes:
+      value: Attach a DTA file only if you want to share it. It contains the readings of your heat pump.

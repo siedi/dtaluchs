@@ -1,0 +1,135 @@
+[project]
+name = "dtaluchs"
+version = "0.5.8"
+description = "Auswertung der DTA-Dateien einer Luxtronik-Wärmepumpensteuerung"
+license = "Apache-2.0"
+requires-python = ">=3.14"
+dependencies = [
+    "duckdb>=1.5.6",
+    "fastapi>=0.143.0",
+    "numpy>=2.5.4",
+    "polars>=2.0",
+    "pydantic>=2.14.1",
+    "pydantic-settings>=2.15.0",
+    "pyyaml>=6.0.3",
+    "uvicorn>=0.54.0",
+]
+
+[project.scripts]
+dtaluchs = "dtaluchs.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+package = true
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "import-linter>=2.15",
+    "mypy>=2.4.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "pytest-xdist>=3.8.0",
+    "ruff>=0.17.0",
+    "types-pyyaml>=6.0.12.20260906",
+]
+
+# --- pytest (CONVENTIONS.md §8) ----------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["*_test.py"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+# A value returned from a test is an error: `return ok` would pass a red check.
+filterwarnings = ["error::pytest.PytestReturnNotNoneWarning"]
+# One run of `$TMPDIR/pytest-of-<user>` kept instead of three: a run is about 1.2 GB, all worktrees share it.
+tmp_path_retention_count = 1
+
+# --- Ruff (CONVENTIONS.md §9) ------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+extend-exclude = ["*.md"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",  # pycodestyle
+    "F",       # pyflakes
+    "I",       # import sorting
+    "UP",      # pyupgrade
+    "B",       # bugbear
+    "SIM",     # simplify
+    "RET",     # return style
+    "C4",      # comprehensions
+    "PTH",     # pathlib over os.path
+    "ASYNC",   # blocking calls in async code (CONVENTIONS.md §3)
+    "DTZ",     # datetimes with a zone (CONVENTIONS.md §8)
+    "PERF",    # performance anti-patterns
+    "RUF",     # ruff-specific rules
+]
+ignore = [
+    "E501",    # line length is the formatter's job
+    "B008",    # Depends()/Query() in defaults is the FastAPI idiom
+    "RET504",  # a named result before return is often the documentation
+    "SIM108",  # a ternary is not always clearer
+    "RUF001",  # German quotation marks and the multiplication sign are intended
+    "RUF003",  # same, in comments
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests build naive UTC datetimes: the import writes TIMESTAMP columns without a zone (CONVENTIONS.md §8).
+"tests/**" = ["DTZ001"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["dtaluchs"]
+
+# --- mypy (CONVENTIONS.md §9) ------------------------------------------
+[tool.mypy]
+strict = true
+files = ["src", "tests", "scripts"]
+plugins = ["pydantic.mypy"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+# --- Import boundary (CONVENTIONS.md §3) -------------------------------
+[tool.importlinter]
+root_package = "dtaluchs"
+
+[[tool.importlinter.contracts]]
+id = "core-is-core"
+name = "core imports neither api nor cli"
+type = "forbidden"
+source_modules = ["dtaluchs.core"]
+forbidden_modules = ["dtaluchs.api", "dtaluchs.cli"]
+
+[[tool.importlinter.contracts]]
+id = "routers-know-no-runner"
+name = "routers ask the import control, not the runner"
+type = "forbidden"
+source_modules = ["dtaluchs.api.routers"]
+forbidden_modules = ["dtaluchs.core.store.runner"]
+
+# The writer and the readers share only the stock format (`dtaluchs.core.stock`).
+[[tool.importlinter.contracts]]
+id = "query-and-store-apart"
+name = "query and store do not import each other"
+type = "independence"
+modules = ["dtaluchs.core.query", "dtaluchs.core.store"]
+
+# The API reads; only the import child writes `raw/` and `meta.duckdb` (CONVENTIONS.md §3).
+[[tool.importlinter.contracts]]
+id = "api-knows-no-writer"
+name = "the API does not import the writer"
+type = "forbidden"
+source_modules = ["dtaluchs.api"]
+forbidden_modules = [
+    "dtaluchs.core.store.importer",
+    "dtaluchs.core.store.partition",
+    "dtaluchs.core.store.migrations",
+]

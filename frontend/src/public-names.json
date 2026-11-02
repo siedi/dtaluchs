@@ -1,0 +1,28 @@
+{
+  ".": ["CoreProviders", "CoreTexts", "NavItem", "Shell", "ShellProps", "coreRoutes", "routerBasename", "setUnauthorizedHandler", "startCore"],
+  "./ui": [
+    "Button",
+    "Dialog",
+    "DialogTrigger",
+    "DialogContent",
+    "DialogHeader",
+    "DialogFooter",
+    "DialogTitle",
+    "DialogDescription",
+    "DialogClose",
+    "DropdownMenu",
+    "DropdownMenuTrigger",
+    "DropdownMenuContent",
+    "DropdownMenuItem",
+    "DropdownMenuSeparator",
+    "DropdownMenuLabel",
+    "DropdownMenuGroup",
+    "Popover",
+    "PopoverTrigger",
+    "PopoverContent",
+    "PopoverAnchor",
+    "Input",
+    "Section",
+    "Note"
+  ]
+}

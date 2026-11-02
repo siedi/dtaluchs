@@ -1,0 +1,17 @@
+apiVersion: 1
+
+# Name before the rename: an existing data source luxdta would otherwise be a second default next to this one
+deleteDatasources:
+  - name: luxdta
+    orgId: 1
+
+datasources:
+  - name: dtaluchs
+    uid: dtaluchs
+    type: yesoreyeram-infinity-datasource
+    access: proxy
+    # Address of the tool as Grafana sees it, from the container's environment
+    url: $DTALUCHS_URL
+    isDefault: true
+    jsonData:
+      timeoutInSeconds: 60

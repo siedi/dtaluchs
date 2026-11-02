@@ -1,0 +1,6 @@
+/* The App: Tailwind plus the theme of the library. A host does the same with `@dtaluchs/core/theme.css`. */
+@import "tailwindcss";
+@import "./theme.css";
+/* The library build and the example host are not part of the app: their classes must not widen its CSS. */
+@source not "../dist-lib";
+@source not "../host-example";

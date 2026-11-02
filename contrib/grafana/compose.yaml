@@ -1,0 +1,32 @@
+# Grafana next to dtaluchs, as an addition to compose.yaml in the repository root:
+#
+#   docker compose -f compose.yaml -f contrib/grafana/compose.yaml up -d
+#
+# Then http://<host>:3000, login admin/admin, Grafana asks for a new password.
+# Dashboard "dtaluchs Übersicht" in the folder dtaluchs. Guide (German): docs/anleitung-grafana.md
+#
+# Port 3000 is reachable from the whole network, and dtaluchs through Grafana as well. Run it only in your home network.
+#
+# Paths are relative to the repository root, because Compose resolves them against the folder of the first file.
+
+services:
+  grafana:
+    image: grafana/grafana:13.2.4
+    ports:
+      - "3000:3000"
+    environment:
+      # Infinity data source, tested in this version
+      GF_PLUGINS_PREINSTALL_SYNC: yesoreyeram-infinity-datasource@4.1.1
+      # Address of dtaluchs as Grafana sees it: service name and port inside the container
+      DTALUCHS_URL: http://dtaluchs:8470
+    volumes:
+      - ./contrib/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./contrib/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      # Grafana users, settings and plugins
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - dtaluchs
+    restart: unless-stopped
+
+volumes:
+  grafana-data:

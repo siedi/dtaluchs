@@ -1,0 +1,4 @@
+# Home Assistant app repository. The Supervisor reads this file in the repository root
+# and finds the app in contrib/home-assistant/dtaluchs.
+name: "DTA-Luchs"
+url: "https://github.com/siedi/dtaluchs"
