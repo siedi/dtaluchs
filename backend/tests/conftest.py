@@ -17,7 +17,7 @@ from dtaluchs.api.app import create_app
 from dtaluchs.api.deps import get_catalog, get_now
 from dtaluchs.core import duck
 from dtaluchs.core.catalog import Catalog, default_catalog, parse_catalog
-from dtaluchs.core.settings import CONFIG_ENV, OLD_CONFIG_ENV, Settings
+from dtaluchs.core.settings import CONFIG_ENV, Settings
 from dtaluchs.core.stock.partitions import partition_path
 from dtaluchs.core.stock.sql import literal
 from dtaluchs.core.store.migrations import connect
@@ -38,7 +38,6 @@ def isolated_configuration(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     """Neither the developer's own dtaluchs.toml nor the environment leak into a test."""
     monkeypatch.setenv(CONFIG_ENV, str(tmp_path / "no-dtaluchs.toml"))
     for name in (
-        OLD_CONFIG_ENV,
         "DTA_SOURCE_DIR",
         "DATA_DIR",
         "HOST",

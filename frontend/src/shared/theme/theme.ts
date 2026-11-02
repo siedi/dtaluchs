@@ -5,26 +5,13 @@ import { useSyncExternalStore } from "react"
 export type ThemeChoice = "light" | "dark" | "system"
 
 const KEY = "dtaluchs-theme"
-// Key before the rename: taken over once, then removed.
-const OLD_KEY = "luxdta-theme"
 const CHOICES: readonly string[] = ["light", "dark", "system"] satisfies ThemeChoice[]
 const QUERY = "(prefers-color-scheme: dark)"
 
 export function readTheme(): ThemeChoice {
   try {
     const storage = globalThis.localStorage
-    let value = storage?.getItem(KEY) ?? null
-    const old = storage?.getItem(OLD_KEY) ?? null
-    if (old !== null) {
-      const takeOver = value === null
-      if (takeOver) value = old
-      try {
-        if (takeOver && CHOICES.includes(old)) storage.setItem(KEY, old)
-        storage.removeItem(OLD_KEY)
-      } catch {
-        // Full or read-only storage: the old key stays and is taken over again at the next read.
-      }
-    }
+    const value = storage?.getItem(KEY) ?? null
     return value !== null && CHOICES.includes(value) ? (value as ThemeChoice) : "system"
   } catch {
     return "system"

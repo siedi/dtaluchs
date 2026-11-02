@@ -1,10 +1,5 @@
 apiVersion: 1
 
-# Name before the rename: an existing data source luxdta would otherwise be a second default next to this one
-deleteDatasources:
-  - name: luxdta
-    orgId: 1
-
 datasources:
   - name: dtaluchs
     uid: dtaluchs

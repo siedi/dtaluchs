@@ -2,7 +2,6 @@ from pathlib import Path
 
 import pytest
 
-from dtaluchs.core import settings as settings_module
 from dtaluchs.core.settings import CONFIG_ENV, REPO_ROOT, ConfigError, Settings, config_path
 
 TOML = """\
@@ -371,31 +370,6 @@ def test_invalid_duckdb_value_from_the_environment_names_the_variable(
         Settings()
     assert "Umgebungsvariable DUCKDB_MEMORY_MB" in str(err.value)
     assert "„[duckdb] memory_mb“" in str(err.value)
-
-
-def test_the_old_config_file_alone_stops_the_start(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """luxdta.toml before the rename: no silent start on defaults."""
-    monkeypatch.delenv(CONFIG_ENV)
-    monkeypatch.setattr(settings_module, "REPO_ROOT", tmp_path)
-    (tmp_path / "luxdta.toml").write_text(TOML)
-    with pytest.raises(ConfigError, match=r"in dtaluchs\.toml umbenennen"):
-        Settings()
-    (tmp_path / "dtaluchs.toml").write_text(TOML)
-    assert Settings().port == 8499
-
-
-def test_the_old_config_variable_alone_stops_the_start(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.delenv(CONFIG_ENV)
-    monkeypatch.setattr(settings_module, "REPO_ROOT", tmp_path)
-    monkeypatch.setenv("LUXDTA_CONFIG", str(tmp_path / "eigene.toml"))
-    with pytest.raises(ConfigError, match="heißt jetzt DTALUCHS_CONFIG"):
-        Settings()
-    write_config(tmp_path, monkeypatch, TOML)
-    assert Settings().port == 8499
 
 
 @pytest.mark.parametrize("port", ["0", "-5", "99999"])

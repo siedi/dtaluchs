@@ -30,9 +30,6 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 
 CONFIG_ENV = "DTALUCHS_CONFIG"
 CONFIG_FILE = "dtaluchs.toml"
-# Names before the rename: no longer read, only recognised to stop the start.
-OLD_CONFIG_ENV = "LUXDTA_CONFIG"
-OLD_CONFIG_FILE = "luxdta.toml"
 
 # Limits of every DuckDB instance of a process (core/duck.py).
 DEFAULT_DUCKDB_MEMORY_MB = 1024
@@ -87,22 +84,11 @@ class ConfigError(Exception):
 
 
 def config_path() -> Path:
-    """dtaluchs.toml in the repository root, or the file named by DTALUCHS_CONFIG (relative: to the root).
-
-    An old name without the new one stops the start: running on defaults would silently drop the settings.
-    """
+    """dtaluchs.toml in the repository root, or the file named by DTALUCHS_CONFIG (relative: to the root)."""
     override = os.environ.get(CONFIG_ENV)
     if override:
         return REPO_ROOT / override
-    if os.environ.get(OLD_CONFIG_ENV):
-        raise ConfigError(
-            f"Die Umgebungsvariable {OLD_CONFIG_ENV} wird nicht mehr gelesen. Sie heißt jetzt {CONFIG_ENV}."
-        )
-    path = REPO_ROOT / CONFIG_FILE
-    old = REPO_ROOT / OLD_CONFIG_FILE
-    if not path.exists() and old.exists():
-        raise ConfigError(f"{old} wird nicht mehr gelesen. Die Datei in {CONFIG_FILE} umbenennen.")
-    return path
+    return REPO_ROOT / CONFIG_FILE
 
 
 _TABLE = re.compile(r"\s*\[\s*([A-Za-z0-9_.-]+)\s*\]")

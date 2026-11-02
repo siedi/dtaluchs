@@ -29,39 +29,6 @@ describe("theme choice", () => {
     expect(readTheme()).toBe("light")
   })
 
-  it("takes over the choice saved under luxdta-theme once", () => {
-    const storage = memoryStorage()
-    storage.setItem("luxdta-theme", "dark")
-    vi.stubGlobal("localStorage", storage)
-    expect(readTheme()).toBe("dark")
-    expect(storage.getItem("dtaluchs-theme")).toBe("dark")
-    expect(storage.getItem("luxdta-theme")).toBeNull()
-  })
-
-  it("still reads the old choice when the storage cannot be written", () => {
-    const storage = memoryStorage()
-    storage.setItem("luxdta-theme", "dark")
-    vi.stubGlobal("localStorage", {
-      ...storage,
-      getItem: storage.getItem,
-      setItem: () => {
-        throw new DOMException("full", "QuotaExceededError")
-      },
-    })
-    expect(readTheme()).toBe("dark")
-    expect(storage.getItem("luxdta-theme")).toBe("dark")
-    expect(storage.getItem("dtaluchs-theme")).toBeNull()
-  })
-
-  it("keeps a choice under the new key over the old one", () => {
-    const storage = memoryStorage()
-    storage.setItem("dtaluchs-theme", "light")
-    storage.setItem("luxdta-theme", "dark")
-    vi.stubGlobal("localStorage", storage)
-    expect(readTheme()).toBe("light")
-    expect(storage.getItem("luxdta-theme")).toBeNull()
-  })
-
   it("ignores a value it does not know", () => {
     const storage = memoryStorage()
     storage.setItem("dtaluchs-theme", "sepia")

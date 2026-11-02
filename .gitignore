@@ -34,8 +34,6 @@ __pycache__/
 
 # Own settings (template: dtaluchs.example.toml)
 /dtaluchs.toml
-# Old name before dtaluchs, still lying around in existing clones
-/luxdta.toml
 
 # Local data directory (DATA_DIR)
 /data/

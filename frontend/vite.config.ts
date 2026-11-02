@@ -8,18 +8,9 @@ import tailwindcss from "@tailwindcss/vite"
 // (or the file named by DTALUCHS_CONFIG), then 8470. Only the top-level `port = <number>` line is
 // read, so each worktree proxies to its own backend without a TOML dependency. An empty variable
 // counts as not set and a relative DTALUCHS_CONFIG means the repository root, as in the backend.
-// The names before the rename stop the dev server as they stop the backend (same texts as config_path() in
-// core/settings.py); otherwise the proxy would silently reach port 8470.
 function backendPort(): string {
   if (process.env.PORT) return process.env.PORT
   const root = path.resolve(import.meta.dirname, "..")
-  if (!process.env.DTALUCHS_CONFIG) {
-    if (process.env.LUXDTA_CONFIG)
-      throw new Error("Die Umgebungsvariable LUXDTA_CONFIG wird nicht mehr gelesen. Sie heißt jetzt DTALUCHS_CONFIG.")
-    const old = path.resolve(root, "luxdta.toml")
-    if (!fs.existsSync(path.resolve(root, "dtaluchs.toml")) && fs.existsSync(old))
-      throw new Error(`${old} wird nicht mehr gelesen. Die Datei in dtaluchs.toml umbenennen.`)
-  }
   const file = path.resolve(root, process.env.DTALUCHS_CONFIG || "dtaluchs.toml")
   try {
     for (const line of fs.readFileSync(file, "utf-8").split("\n")) {

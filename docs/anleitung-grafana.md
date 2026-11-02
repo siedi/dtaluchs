@@ -31,8 +31,6 @@ Grafana spricht dtaluchs im Compose-Netz unter `http://dtaluchs:8470` an. Wer dt
 
 Wer Grafana per Provisioning einrichtet, nimmt die Dateien unter `contrib/grafana/provisioning/`. Die Datasource liest die Adresse aus der Umgebungsvariable `DTALUCHS_URL`.
 
-Eine Grafana, die schon vor der Umbenennung von luxdta in dtaluchs lief, kannte Datasource und Dashboard unter `luxdta`. Die Variable hieß `LUXDTA_URL` und muss umbenannt werden. Die Datasource `luxdta` löscht das Provisioning beim nächsten Start selbst, das alte Dashboard verschwindet. Das neue heißt `dtaluchs-uebersicht`, gespeicherte Links auf `luxdta-uebersicht` führen ins Leere. Der leere Ordner `luxdta` bleibt und lässt sich von Hand löschen (geprüft mit Grafana 13.2.4, 2026-10-19). Eigene Dashboards auf der Datasource `luxdta` vorher auf `dtaluchs` umstellen: Eine Datasource mit dem Namen `luxdta` löscht das Provisioning bei jedem Start, auch eine von Hand angelegte.
-
 ## 3. Das Beispiel-Dashboard
 
 | Panel | Quelle | Inhalt |
