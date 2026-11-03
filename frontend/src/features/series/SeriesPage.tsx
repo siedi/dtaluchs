@@ -1,7 +1,7 @@
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import type { TFunction } from "i18next"
 import { InfoIcon, PlusIcon } from "lucide-react"
-import { useCallback, useMemo, useRef, type ReactNode } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate, useSearchParams } from "react-router"
 import { toast } from "sonner"
@@ -14,8 +14,6 @@ import { SIDE } from "@/shared/chart/theme"
 import { useCapabilities } from "@/shared/config/queries"
 import { CsvButton, type CsvItem } from "@/shared/export/CsvButton"
 import { NoImport } from "@/shared/import/NoImport"
-import { isNoImport } from "@/shared/import/nodata"
-import { useImportStatus } from "@/shared/import/queries"
 import { useMeta } from "@/shared/meta/queries"
 import type { FieldInfo, Meta } from "@/shared/meta/types"
 import { ShowSwitch } from "@/shared/show/ShowSwitch"
@@ -28,9 +26,10 @@ import { FieldPicker } from "./FieldPicker"
 import { SeriesTable } from "./SeriesTable"
 import { SignalArea } from "./SignalArea"
 import { ValueChart, type RowProps } from "./ValueChart"
-import { seriesCsvUrl } from "./api"
+import { seriesCsvUrl, type SeriesParams } from "./api"
 import { clearPointer } from "./cursor"
-import { useSeries } from "./queries"
+import { createViewport, type CommitMode } from "./gestures"
+import { seriesParams, showsPartial, useSeries } from "./queries"
 import { FieldStats } from "./stats/FieldStats"
 import { fieldStatsCsvUrl } from "./stats/api"
 import { useFieldScope } from "./stats/queries"
@@ -45,13 +44,11 @@ import { isChanged } from "./views/views"
 export function SeriesPage() {
   const { t } = useTranslation()
   const meta = useMeta()
-  const status = useImportStatus()
   if (meta.isPending) return <Note title={t("series.loading")} />
-  // No stock and no run: the way in is the page Import, as on the start page.
-  if (meta.isError && !meta.data && isNoImport(meta.error, status.data)) return <NoImport />
   if (meta.isError) {
     return <Note title={t("series.unavailable")} text={meta.error.message} action={t("series.retry")} onAction={() => void meta.refetch()} error />
   }
+  // No stock, also before the first import: the way in is the page Import, as on the start page.
   if (!meta.data.range) return <NoImport />
   return <SeriesView meta={meta.data} stock={meta.data.range} />
 }
@@ -77,19 +74,43 @@ function SeriesView({ meta, stock }: { meta: Meta; stock: NonNullable<Meta["rang
   const { vid, resolving, current, viewSearch } = useViewTarget(params, setParams, stock, fields)
   const changed = current !== null && isChanged(current, layout, range, stock, fields)
 
-  // uPlot hands a selection on to every coupled chart in the same event; only the first call of
-  // that event writes a history entry.
+  // Several charts of the page may report the same range in one event; only the first call of that event
+  // writes a history entry.
   const pushed = useRef<string | null>(null)
   const update = useCallback(
-    (next: { range?: TimeRange; layout?: Layout }) => {
+    (next: { range?: TimeRange; layout?: Layout }, mode: CommitMode = "push") => {
       const search = keepShow(searchOf(next.range ?? range, next.layout ?? layout, vid), params)
-      if (search.toString() === pushed.current || search.toString() === params.toString()) return
+      if (search.toString() === params.toString()) return
+      if (mode === "replace") return void setParams(search, { replace: true })
+      if (search.toString() === pushed.current) return
       pushed.current = search.toString()
       queueMicrotask(() => (pushed.current = null))
       setParams(search)
     },
     [range, layout, vid, params, setParams],
   )
+  // The range the plots show, which a gesture moves before the URL follows. The viewport is made once and reports to the
+  // latest `update` of the page; the range of the URL is the visible one, a new one (quick pick, back, reload) is set on every plot.
+  // The ref follows before the timers of a gesture can fire: a commit never reads the range or layout of an older render.
+  // The stock may grow with an import while the page stays; a gesture takes its bounds from the latest one.
+  const latest = useRef({ update, stock })
+  useLayoutEffect(() => {
+    latest.current = { update, stock }
+  })
+  const [viewport] = useState(() =>
+    createViewport(
+      range,
+      { get first_ts() { return latest.current.stock.first_ts }, get last_ts() { return latest.current.stock.last_ts } },
+      (next, mode) => latest.current.update({ range: next }, mode),
+    ),
+  )
+  // Leaving the page ends a running gesture: its timers would commit to the URL of another page.
+  useEffect(() => () => viewport.dispose(), [viewport])
+  // Only a range the viewport did not hand over itself is set: a gesture that runs on after its commit keeps its range.
+  useEffect(() => {
+    const own = viewport.committed()
+    if (own.from !== range.from || own.to !== range.to) viewport.reset(range)
+  }, [viewport, range])
   const actions = useSeriesActions(layout, fields, update)
 
   // A click on a field of the statistic: one history entry that shows the chart and adds the field unless it is there.
@@ -110,14 +131,15 @@ function SeriesView({ meta, stock }: { meta: Meta; stock: NonNullable<Meta["rang
   const plotWidth = compact ? width : width - SIDE
   const ids = [...layout.charts.flatMap((c) => c.items.map((i) => i.id)), ...layout.signals.map((i) => i.id)]
   // The statistic asks for its own figures; the series of the chart are not needed behind it.
-  const series = useSeries(width > 0 && !resolving && show !== "stats" ? { fields: ids, from: range.from, to: range.to, points: pointsFor(plotWidth) } : null)
+  // The charts load the range with a margin and show the range of the URL; the table lists the rows of the range only.
+  const asked = show === "table" ? { fields: ids, from: range.from, to: range.to, points: pointsFor(plotWidth) } : seriesParams(range, stock, plotWidth, ids)
+  const series = useSeries(width > 0 && !resolving && show !== "stats" ? asked : null)
   const data = series.data
   // "Statistik" is offered with the statistic; `when` counts only if the range has the bit (the scope tells, as in the page).
   const scope = useFieldScope(range, show === "stats")
   const statsWhen = effectiveWhen(when, scope.data !== undefined && !scope.isPlaceholderData ? scope.data : null)
   const csv = csvItems(t, { ids, range, points: pointsFor(plotWidth), stats: show === "stats", statsWhen })
   const anyRight = layout.charts.some((c) => unitsOf(c, fields).length > 1)
-  const onSelect = useCallback((from: number, to: number) => update({ range: { from, to } }), [update])
   const gone = [...new Set([...missing, ...(current ? layoutOfView(current, fields).missing : [])])].filter((id) => id !== "")
 
   let body: ReactNode
@@ -138,8 +160,10 @@ function SeriesView({ meta, stock }: { meta: Meta; stock: NonNullable<Meta["rang
   } else {
     body = (
       <SeriesBody
-        row={{ layout, fields, width: plotWidth, anyRight, compact, actions, onSelect }}
+        row={{ layout, fields, width: plotWidth, anyRight, compact, actions, viewport }}
         series={series}
+        asked={asked}
+        range={range}
         empty={ids.length === 0}
         table={show === "table"}
         stock={stock}
@@ -232,6 +256,10 @@ function csvItems(
 interface BodyProps {
   row: Omit<RowProps, "data">
   series: ReturnType<typeof useSeries>
+  /** What the page asks for now, to tell whether the shown answer is the one for it. */
+  asked: SeriesParams
+  /** The visible range, to tell whether the shown answer covers it. */
+  range: TimeRange
   /** The layout has no field: no chart item and no signal. */
   empty: boolean
   /** `show=table`: the rows instead of the charts. */
@@ -241,7 +269,7 @@ interface BodyProps {
 }
 
 /** Charts or table of the answer, or what stands in their place: no field, an error, loading, an empty range. */
-function SeriesBody({ row, series, empty, table, stock, onWholeStock }: BodyProps) {
+function SeriesBody({ row, series, asked, range, empty, table, stock, onWholeStock }: BodyProps) {
   const { t } = useTranslation()
   const { layout, fields } = row
   const data = series.data
@@ -268,13 +296,14 @@ function SeriesBody({ row, series, empty, table, stock, onWholeStock }: BodyProp
       />
     )
   }
-  if (table) return <SeriesTable data={data} fields={byIdOf(fields)} />
+  const dim = showsPartial(series.isPlaceholderData, data, asked, range) ? "opacity-50" : ""
+  if (table) return <div className={`transition-opacity ${dim}`}><SeriesTable data={data} fields={byIdOf(fields)} /></div>
   const charts: ReactNode[] = layout.charts.map((chart, index) => (
     <ValueChart key={chart.items.map((i) => i.id).join(",")} chart={chart} index={index} {...row} data={data} />
   ))
   const blocks = charts.toSpliced(layout.signalsAt, 0, <SignalArea key="signals" {...row} data={data} />)
   return (
-    <div className={`transition-opacity ${series.isPlaceholderData ? "opacity-50" : ""}`} onPointerLeave={clearPointer}>
+    <div className={`transition-opacity ${dim}`} onPointerLeave={clearPointer}>
       <SortableContext items={blocks.map((_, i) => `block:${i}`)} strategy={verticalListSortingStrategy}>
         {blocks}
       </SortableContext>

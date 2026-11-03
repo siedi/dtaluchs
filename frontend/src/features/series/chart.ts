@@ -8,6 +8,7 @@ import { formatNumber, formatTick, isDuration } from "@/shared/time/format"
 import { zone } from "@/shared/time/zone"
 import { rowAt } from "./cursor"
 import { durationAxis, type DurationAxis } from "./duration-axis"
+import type { Viewport } from "./gestures"
 import type { Chart, Curve, SeriesResponse } from "./types"
 import { unitName, unitsOf } from "./view"
 
@@ -35,7 +36,8 @@ const DASH = [6, 4] // curves of the right axis
 export interface ChartContext {
   width: number
   data: SeriesResponse
-  onSelect: (from: number, to: number) => void
+  /** The visible time range, which the x scale of every plot shows; the data may reach further (loaded with a margin). */
+  viewport: Viewport
   /**
    * Row whose interval holds the time under the pointer, the x of the pointer in CSS pixels from the left
    * of the chart and that time; all null when gone, the row also before the first row.
@@ -68,13 +70,15 @@ export function baseOptions(ctx: ChartContext, height: number, top: number, righ
     cursor: {
       y: false,
       sync: { key: "series", setSeries: false },
-      drag: { x: true, y: false, setScale: false },
+      drag: { x: false, y: false, setScale: false },
       points: { size: 7 },
+      // A gesture hides line, points, time pill and labels: uPlot then reports the cursor as gone.
+      move: (_u, left, top) => (ctx.viewport.cursorHidden() ? [-10, -10] : [left, top]),
       // The points on the curves mark the row the side column shows, not the nearest one.
       dataIdx: (u, _series, _nearest, time) => rowAt(u.data[0], time, ctx.data.bucket_seconds ?? RAW_STEP),
     },
     tzDate: (ts) => uPlot.tzDate(new Date(ts * 1000), zone()),
-    scales: { x: { time: true, range: () => [ctx.data.from, ctx.data.to] } },
+    scales: { x: { time: true, range: () => [ctx.viewport.get().from, ctx.viewport.get().to] } },
     series: [{}],
     axes: [
       {
@@ -86,15 +90,6 @@ export function baseOptions(ctx: ChartContext, height: number, top: number, righ
     ],
     hooks: {
       drawClear: [(u) => shadeGaps(u, ctx.data.gaps)],
-      setSelect: [
-        (u) => {
-          if (u.select.width < 4) return
-          const from = Math.round(u.posToVal(u.select.left, "x"))
-          const to = Math.round(u.posToVal(u.select.left + u.select.width, "x"))
-          u.setSelect({ left: 0, width: 0, top: 0, height: 0 }, false)
-          ctx.onSelect(from, to)
-        },
-      ],
       setCursor: [
         (u) => {
           const left = u.cursor.left
@@ -126,6 +121,13 @@ export function curveOf(data: SeriesResponse, id: string): Curve | undefined {
 // As many decimals as the tick step needs, so 2.8, 2.9, 3.0 do not all read "3".
 const tickValues: uPlot.Axis.DynamicValues = (_u, splits, _axis, _space, step) =>
   splits.map((v) => formatNumber(v, Math.min(3, Math.max(0, -Math.floor(Math.log10(step || 1))))))
+
+/**
+ * The range of a y scale: uPlot's own over the visible values, and 0 to 1 without any. uPlot hides an axis whose scale has
+ * no range and gives its room to the plot; a chart without values in the range would then begin further left than the
+ * others and its time axis would not line up.
+ */
+const keepAxis: uPlot.Range.Function = (_u, min, max) => (min == null || max == null ? [0, 1] : uPlot.rangeNum(min, max, 0.1, true))
 
 const axisCache = new WeakMap<uPlot, Map<string, { min: number; max: number; height: number; axis: DurationAxis }>>()
 
@@ -176,6 +178,7 @@ export function valuesChart(
   const area = VALUES_TOP + PLOT_MIN + AXIS
   const height = compact ? area : Math.max(area, sideHeight(counts, units.length > 1))
   const opts = baseOptions(ctx, height, VALUES_TOP, anyRight ? RIGHT_AXIS : RIGHT_PAD)
+  opts.scales!.y = { range: keepAxis }
   const columns: (number | null)[][] = []
   const series: uPlot.Series[] = [{}]
   const bands: uPlot.Band[] = []
@@ -201,7 +204,7 @@ export function valuesChart(
   if (isDuration(units[0])) Object.assign(opts.axes![1]!, durationTicks("y"))
   else opts.axes![1]!.values = tickValues
   if (units.length > 1) {
-    opts.scales!.y2 = {}
+    opts.scales!.y2 = { range: keepAxis }
     opts.axes![2] = {
       scale: "y2", side: 1, size: RIGHT_AXIS, stroke: token("--text-3"), grid: { show: false },
       ticks: { show: false }, font: FONT, gap: 6, ...(isDuration(units[1]) ? durationTicks("y2") : { values: tickValues }),

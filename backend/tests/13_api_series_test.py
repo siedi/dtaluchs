@@ -1,4 +1,5 @@
 import shutil
+from typing import Any
 
 import httpx
 import numpy as np
@@ -78,6 +79,12 @@ async def test_series_condenses_a_long_range(api_client: httpx.AsyncClient) -> N
 
 
 @pytest.mark.usefixtures("stocked")
+async def test_points_up_to_12000_are_accepted(api_client: httpx.AsyncClient) -> None:
+    params: dict[str, Any] = {"fields": "flow_temp", "from": T0, "to": T0 + 60, "points": 12_000}
+    assert (await api_client.get("/api/series", params=params)).status_code == 200
+
+
+@pytest.mark.usefixtures("stocked")
 @pytest.mark.parametrize(
     ("params", "detail"),
     [
@@ -86,7 +93,11 @@ async def test_series_condenses_a_long_range(api_client: httpx.AsyncClient) -> N
         ({"fields": "flow_temp", "from": T0, "to": T0}, "Der Beginn muss vor dem Ende liegen."),
         (
             {"fields": "flow_temp", "from": T0, "to": T0 + 60, "points": 50},
-            "points muss zwischen 100 und 4000 liegen.",
+            "points muss zwischen 100 und 12000 liegen.",
+        ),
+        (
+            {"fields": "flow_temp", "from": T0, "to": T0 + 60, "points": 12_001},
+            "points muss zwischen 100 und 12000 liegen.",
         ),
         ({"from": T0, "to": T0 + 60}, "Mindestens ein Feld angeben."),
     ],

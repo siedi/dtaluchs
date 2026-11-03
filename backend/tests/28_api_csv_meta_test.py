@@ -112,9 +112,12 @@ async def test_meta_without_format_is_still_json(
     assert response.json()["firmware"][0]["software_version"] == 5000
 
 
-async def test_csv_before_the_first_import_is_503_at_once(api_client: httpx.AsyncClient) -> None:
+async def test_csv_before_the_first_import_has_the_header_only(
+    api_client: httpx.AsyncClient,
+) -> None:
     response = await api_client.get("/api/meta", params={"format": "csv", "table": "layouts"})
-    assert response.status_code == 503
+    assert response.status_code == 200
+    assert len(response.text.strip().splitlines()) == 1
 
 
 async def test_a_busy_writer_is_waited_for_then_503(

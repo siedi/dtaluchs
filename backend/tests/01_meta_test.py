@@ -65,14 +65,17 @@ async def test_meta_lists_the_columns_of_the_stock(
     assert body["layouts"][0]["version"] == 9003
 
 
-async def test_meta_before_the_first_import_points_to_the_command(
+async def test_meta_before_the_first_import_is_an_empty_stock(
     api_client: httpx.AsyncClient,
 ) -> None:
+    # A new plant has nothing imported yet; that is no passing failure to retry (503).
     response = await api_client.get("/api/meta")
-    assert response.status_code == 503
-    detail = response.json()["detail"]
-    assert "`dtaluchs import`" in detail
-    assert "./dtaluchs" not in detail
+    assert response.status_code == 200
+    body = response.json()
+    assert body["range"] is None
+    assert body["import"]["last_run"] is None
+    assert body["import"]["files_ok"] == body["import"]["records"] == 0
+    assert body["layouts"] == body["fields"] == body["firmware"] == body["gaps"] == []
 
 
 def test_a_running_import_makes_the_reader_wait_instead_of_failing(

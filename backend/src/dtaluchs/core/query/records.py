@@ -17,7 +17,7 @@ from dtaluchs.core.catalog import Catalog
 from dtaluchs.core.query.fields import Column, load_columns, read_layout_columns, value_sql
 from dtaluchs.core.query.source import busy_during_rebuild, parquet_sql, present_columns, scratch
 from dtaluchs.core.query.timerange import MAX_TS
-from dtaluchs.core.stock.meta import read_meta
+from dtaluchs.core.stock.meta import read_stock
 from dtaluchs.core.stock.partitions import GAP_SECONDS, partitions_between
 
 STEP = 60  # usual distance of two records
@@ -64,7 +64,7 @@ def open_records(
     data_dir: Path, catalog: Catalog, start: int, end: int, use: Use
 ) -> Iterator[Records]:
     """`rec` over the records around [start, end) (see MARGIN), gaps touching [start, end)."""
-    with read_meta(data_dir) as meta:
+    with read_stock(data_dir) as meta:
         rows = read_layout_columns(meta)
         fields = load_columns(rows, catalog)
         gaps = meta.execute(

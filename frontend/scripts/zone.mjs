@@ -146,6 +146,8 @@ for (const zone of ZONES) {
     await table.waitFor()
     const head = await table.locator("th").first().innerText()
     if (head !== "Zeit") throw new Error(`Tabelle: erste Spalte heißt „${head}“, nicht „Zeit“`)
+    // The table shows the answer of the chart (with its margin) until its own answer is there.
+    await page.waitForFunction((n) => document.querySelectorAll("table tbody tr").length === n, series.ts.length).catch(() => {})
     const cells = await table.locator("tbody tr td:first-child").allInnerTexts()
     if (cells.length !== series.ts.length) throw new Error(`Tabelle: ${cells.length} Zeilen statt ${series.ts.length}`)
     for (const i of [0, Math.floor(cells.length / 2), cells.length - 1]) {
@@ -308,9 +310,10 @@ for (const zone of ZONES) {
     await t.page.locator("canvas").first().waitFor()
     await t.page.getByRole("button", { name: RANGE_BUTTON }).first().click()
     const dlg = t.page.getByRole("dialog")
-    const lastDate = local(LAST).slice(0, 2)
-    const last = dlg.getByRole("button", { name: new RegExp(`^(Heute, )?\\p{L}+, ${Number(lastDate)}\\. Oktober 2026`, "u") }).first()
-    const after = dlg.getByRole("button", { name: new RegExp(`^(Heute, )?\\p{L}+, ${Number(lastDate) + 1}\\. Oktober 2026`, "u") }).first()
+    // Day, month and year of the last record and of the day after it in the zone of the plant, as the calendar names them.
+    const dayName = (ts) => new Intl.DateTimeFormat("de-DE", { day: "numeric", month: "long", year: "numeric", timeZone: PLANT }).format(new Date(ts * 1000))
+    const last = dlg.getByRole("button", { name: new RegExp(`^(Heute, )?\\p{L}+, ${dayName(LAST)}`, "u") }).first()
+    const after = dlg.getByRole("button", { name: new RegExp(`^(Heute, )?\\p{L}+, ${dayName(LAST + 86400)}`, "u") }).first()
     await last.waitFor()
     if (!(await last.isEnabled())) throw new Error("Der Tag des letzten Eintrags ist gesperrt")
     if (!(await after.isDisabled())) throw new Error("Der Tag nach dem Bestand ist nicht gesperrt")

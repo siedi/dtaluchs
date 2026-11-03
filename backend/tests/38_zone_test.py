@@ -209,7 +209,7 @@ def test_format_is_local_without_the_zone() -> None:
 
 
 async def test_config_answers_without_an_import(api_client: httpx.AsyncClient) -> None:
-    assert (await api_client.get("/api/meta")).status_code == 503  # no stock yet
+    assert (await api_client.get("/api/meta")).json()["range"] is None  # no stock yet
     response = await api_client.get("/api/config")
     assert response.status_code == 200
     assert response.json()["timezone"] == "Europe/Berlin"

@@ -24,7 +24,6 @@ const TOKENS: Record<string, [light: string, dark: string]> = {
   "--mark": ["#8a5200", "#f2b866"],
   "--link": ["#8a5200", "#f2b866"],
   "--accent-soft": ["rgba(138,82,0,.10)", "rgba(242,184,102,.14)"],
-  "--select": ["rgba(107,95,84,.24)", "rgba(154,141,128,.24)"],
 }
 
 // Series palette.
@@ -73,22 +72,6 @@ describe("tokens of theme.css", () => {
     const series = [light, dark].flatMap((scheme) => [...scheme].filter(([name]) => name.startsWith("--series-")).map(([, value]) => value))
     expect(series).toHaveLength(16)
     for (const color of series) expect(contrast(inkOn(color, inkLight, inkDark), color), color).toBeGreaterThanOrEqual(4.5)
-  })
-
-  it("makes the selection of a chart visible on the page ground --bg (1,3:1) and neutral, light and dark", () => {
-    const over = (fill: string, ground: string): string => {
-      const [r, g, b, a] = fill.match(/[\d.]+/g)!.map(Number) as [number, number, number, number]
-      const [gr, gg, gb] = [1, 3, 5].map((i) => parseInt(ground.slice(i, i + 2), 16))
-      return `rgb(${[r, g, b].map((v, i) => Math.round(v * a + [gr, gg, gb][i]! * (1 - a))).join(",")})`
-    }
-    for (const [i, scheme] of ["light", "dark"].entries()) {
-      const fill = TOKENS["--select"]![i]!
-      const ground = TOKENS["--bg"]![i]!
-      expect(contrast(over(fill, ground), ground), scheme).toBeGreaterThanOrEqual(1.3)
-      // The Hausfarbe never enters the chart surface: the fill is --text-3 (RGB of the token), only its alpha differs.
-      const text3 = TOKENS["--text-3"]![i]!
-      expect(fill.match(/\d+/g)!.slice(0, 3).map(Number), scheme).toEqual([1, 3, 5].map((k) => parseInt(text3.slice(k, k + 2), 16)))
-    }
   })
 
   it("binds the shadcn names to the tokens", () => {

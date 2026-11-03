@@ -169,11 +169,13 @@ async def test_check_without_the_csv_format_is_422(
     assert "check" in response.json()["detail"]
 
 
-async def test_without_a_stock_the_answer_is_503(api_client: httpx.AsyncClient) -> None:
+async def test_without_a_stock_the_answer_is_empty(api_client: httpx.AsyncClient) -> None:
     for url in URLS:
-        assert (await api_client.get(url, params=RANGE)).status_code == 503
+        response = await api_client.get(url, params=RANGE)
+        assert response.status_code == 200
+        assert response.json()["records"] == 0
     check: dict[str, Any] = {**RANGE, "format": "csv", "check": "true"}
-    assert (await api_client.get("/api/field-stats", params=check)).status_code == 503
+    assert (await api_client.get("/api/field-stats", params=check)).status_code == 204
 
 
 @pytest.mark.parametrize(

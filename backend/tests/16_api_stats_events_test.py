@@ -81,6 +81,8 @@ async def test_unknown_period_is_422(api_client: httpx.AsyncClient) -> None:
 
 
 @pytest.mark.parametrize("path", ["/api/stats", "/api/events"])
-async def test_without_import_503(api_client: httpx.AsyncClient, path: str) -> None:
+async def test_without_import_an_empty_answer(api_client: httpx.AsyncClient, path: str) -> None:
     response = await api_client.get(path, params={"from": 0, "to": 10})
-    assert response.status_code == 503
+    assert response.status_code == 200
+    body = response.json()
+    assert body.get("start", body.get("runs", {}).get("start")) == []

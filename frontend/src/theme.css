@@ -764,8 +764,6 @@
     --series-1: #2a78d6; --series-2: #eb6834; --series-3: #0aa975; --series-4: #c88805;
     --series-5: #de729b; --series-6: #008300; --series-7: #6250d6; --series-8: #e34948;
     --gap: rgba(107, 95, 84, .16);
-    /* Selection while dragging over a chart (uPlot .u-select): --text-3 at 24 % */
-    --select: rgba(107, 95, 84, .24);
     /* Opacity of the band between both COPs */
     --band-alpha: 0.22;
     /* Two warm greys of the stock band, alternating per firmware */
@@ -804,7 +802,6 @@
     --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
     --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767;
     --gap: rgba(154, 141, 128, .14);
-    --select: rgba(154, 141, 128, .24);
     --band-alpha: 0.38;
     --band-a: #342d26; --band-b: #4d443a;
     --drop: rgba(242, 184, 102, .12); --drop-line: #f2b866; --no: rgba(154, 141, 128, .10);
@@ -911,10 +908,6 @@
 .uplot.u-hz .u-cursor-y,
 .uplot.u-vt .u-cursor-x {
   border-bottom-color: var(--text-3);
-}
-/* The selection while dragging: uPlot paints rgba(0, 0, 0, .07), which a dark chart surface hides. */
-.uplot .u-select {
-  background: var(--select);
 }
 /* A frame of 1 px as an inset shadow (the switch): it is painted under the children, so the outline of
    a focused part can reach the edge of the switch without the frame lying over it. */

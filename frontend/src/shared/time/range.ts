@@ -18,6 +18,12 @@ export interface TimeRange {
   to: number
 }
 
+/** The range of the data: first and last record, Unix seconds. */
+export interface Stock {
+  first_ts: number
+  last_ts: number
+}
+
 export interface Preset {
   key: string
   span: number | null
@@ -33,7 +39,7 @@ export const PRESETS = [
 ] as const satisfies readonly Preset[]
 
 /** Preset range ending one second after the last record; `null` span means the whole stock. */
-export function presetRange(stock: { first_ts: number; last_ts: number }, span: number | null): TimeRange {
+export function presetRange(stock: Stock, span: number | null): TimeRange {
   const to = stock.last_ts + 1
   return { from: span === null ? stock.first_ts : Math.max(stock.first_ts, to - span), to }
 }
@@ -41,7 +47,7 @@ export function presetRange(stock: { first_ts: number; last_ts: number }, span: 
 /** `from` and `to` of the URL when they make a range the server accepts, else the preset. */
 export function rangeFromParams(
   params: URLSearchParams,
-  stock: { first_ts: number; last_ts: number },
+  stock: Stock,
   fallbackSpan: number | null,
 ): TimeRange {
   // Digits only: `Number("")` is 0, and " ", "0x10" and "1e3" are numbers too, none of them a time the link meant.
@@ -69,7 +75,7 @@ export const CALENDAR: readonly CalendarKey[] = [
  * after the last record like `presetRange`, a closed one where the next period begins. `from` is
  * never before the stock.
  */
-export function calendarRange(key: CalendarKey, stock: { first_ts: number; last_ts: number }): TimeRange {
+export function calendarRange(key: CalendarKey, stock: Stock): TimeRange {
   const end = stock.last_ts + 1
   const ref = parts(stock.last_ts)
   const [y, m, d] = [ref.year, ref.month - 1, ref.day]
@@ -101,7 +107,7 @@ export function calendarRange(key: CalendarKey, stock: { first_ts: number; last_
 /** Key of the preset or calendar period a range equals, else `null`. A preset wins over a calendar period. */
 export function matchRange(
   range: TimeRange,
-  stock: { first_ts: number; last_ts: number },
+  stock: Stock,
   presets: readonly Preset[],
 ): string | null {
   const same = (r: TimeRange) => r.from === range.from && r.to === range.to

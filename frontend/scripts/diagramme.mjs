@@ -85,7 +85,7 @@ const ok = (what, cond, detail = "") => {
 }
 const log = (...args) => console.log("    ", ...args)
 
-async function open(browser, url, { width = 1280, dark = false, scale = 1 } = {}) {
+async function open(browser, url, { width = 1280, dark = false, scale = 1, route } = {}) {
   const context = await browser.newContext({ viewport: { width, height: 1400 }, colorScheme: dark ? "dark" : "light", deviceScaleFactor: scale })
   await context.addInitScript(RECORD)
   const page = await context.newPage()
@@ -93,6 +93,7 @@ async function open(browser, url, { width = 1280, dark = false, scale = 1 } = {}
   const problems = []
   page.on("pageerror", (e) => problems.push(e.message))
   page.on("console", (m) => m.type() === "error" && problems.push(m.text()))
+  if (route) await page.route(/\/api\/series\?/, route)
   await page.goto(url)
   await page.waitForSelector("canvas")
   await page.waitForFunction(() => [...document.fonts].some((f) => f.family.includes("IBM Plex Sans") && f.status === "loaded"))
@@ -251,58 +252,39 @@ for (const dark of [false, true]) {
   })
 }
 
-for (const dark of [false, true]) {
-  check(`Auswahl beim Ziehen ${dark ? "dunkel" : "hell"}: .u-select in --select, sichtbar gegen den Grund (--bg), keine Hausfarbe`, async (browser) => {
-    const o = await open(browser, series([CELSIUS]), { dark })
-    const over = await o.page.locator('section[aria-label^="Diagramm"] .u-over').first().boundingBox()
-    await o.page.mouse.move(over.x + over.width * 0.3, over.y + over.height / 2)
-    await o.page.mouse.down()
-    await o.page.mouse.move(over.x + over.width * 0.6, over.y + over.height / 2, { steps: 10 })
-    // uPlot drops a move without `movementX` and `movementY`, and WebKit sets neither for moves of the test driver:
-    // the same move once more as an event with a movement.
-    await o.page.evaluate(([x, y]) => {
-      document.querySelector('section[aria-label^="Diagramm"] .u-over').dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: x, clientY: y, movementX: 4, buttons: 1 }))
-    }, [over.x + over.width * 0.6 + 4, over.y + over.height / 2])
-    await o.page.waitForTimeout(200)
-    const r = await o.page.evaluate(() => {
-      const probe = (v) => {
-        const el = document.createElement("i")
-        el.style.cssText = `background:var(${v});color:var(${v})`
-        document.body.append(el)
-        const c = getComputedStyle(el)
-        const out = { bg: c.backgroundColor, color: c.color }
-        el.remove()
-        return out
-      }
-      const sel = document.querySelector(".u-select")
-      // The ground the selection is painted on: the first opaque background up the tree, not an assumed token.
-      let ground = null
-      for (let el = sel.parentElement; el && !ground; el = el.parentElement) {
-        const c = getComputedStyle(el).backgroundColor
-        if (!/rgba\(.*, 0\)$|^transparent$/.test(c)) ground = c
-      }
-      return { width: sel.getBoundingClientRect().width, bg: getComputedStyle(sel).backgroundColor, select: probe("--select").bg, pageBg: probe("--bg").color, ground, house: ["--accent", "--mark", "--brand", "--link"].map((n) => probe(n).color) }
-    })
-    await o.page.mouse.up()
-    const rgba = (c) => c.match(/[\d.]+/g).map(Number)
-    const lum = ([x, y, z]) => {
-      const [a, b, c] = [x, y, z].map((v) => ((v /= 255) <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
-      return 0.2126 * a + 0.7152 * b + 0.0722 * c
+// Dragging over a chart draws no selection; it moves the range instead (zoomen.mjs checks that).
+check("Ziehen über dem Diagramm zeichnet keine Auswahl", async (browser) => {
+  const o = await open(browser, series([CELSIUS]))
+  const over = await o.page.locator('section[aria-label^="Diagramm"] .u-over').first().boundingBox()
+  await o.page.mouse.move(over.x + over.width * 0.3, over.y + over.height / 2)
+  await o.page.mouse.down()
+  await o.page.mouse.move(over.x + over.width * 0.6, over.y + over.height / 2, { steps: 10 })
+  const width = await o.page.evaluate(() => document.querySelector(".u-select").getBoundingClientRect().width)
+  await o.page.mouse.up()
+  expect("Breite der Auswahl", width, 0)
+  await finish(o)
+})
+
+check("Diagramm ohne Werte im Zeitraum: linke Achse bleibt, die Fläche beginnt an derselben Stelle wie die anderen", async (browser) => {
+  // The answer carries no value for the field of the second chart.
+  const empty = async (route) => {
+    const body = await (await route.fetch()).json()
+    for (const c of body.series) {
+      if (c.field !== CELSIUS[1]) continue
+      for (const key of ["value", "min", "max"]) if (c[key]) c[key] = c[key].map(() => null)
     }
-    const [sr, sg, sb, sa = 1] = rgba(r.select)
-    const ground = rgba(r.ground).slice(0, 3)
-    const over2 = [sr, sg, sb].map((v, i) => v * sa + ground[i] * (1 - sa))
-    const ratio = (lum(over2) + 0.05) / (lum(ground) + 0.05)
-    const value = Math.max(ratio, 1 / ratio)
-    log(`Auswahl ${r.width.toFixed(0)} px breit, ${r.bg}, --select ${r.select}, auf ${r.ground}: ${value.toFixed(2)}:1`)
-    ok("Auswahl hat Breite", r.width > 10, String(r.width))
-    expect("Grund der Auswahl", r.bg, r.select)
-    expect("Grund der Diagramme ist --bg", r.ground, r.pageBg)
-    ok(`Auswahl gegen den Grund mindestens 1,3:1 (${value.toFixed(2)})`, value >= 1.3)
-    ok("Auswahl nicht in Hausfarbe", !r.house.includes(r.bg))
-    await finish(o)
-  })
-}
+    await route.fulfill({ json: body })
+  }
+  const o = await open(browser, series([[CELSIUS[0]], [CELSIUS[1]]]), { route: empty })
+  const boxes = await o.page.evaluate(() => [...document.querySelectorAll('section[aria-label^="Diagramm"] .u-over')].map((e) => {
+    const r = e.getBoundingClientRect()
+    return { left: r.left, width: r.width }
+  }))
+  log(JSON.stringify(boxes))
+  expect("zwei Diagramme", boxes.length, 2)
+  expect("linke Kante und Breite gleich", boxes[1], boxes[0])
+  await finish(o)
+})
 
 check("Kennzahlen: Höhen der fünf Diagramme 120, 168, 128, 168, 128 px, Achse 12 px in --text-3", async (browser) => {
   for (const [width, dark] of [[1280, false], [390, true]]) {
@@ -503,7 +485,9 @@ for (const dark of [false, true]) {
       const res = await route.fetch()
       const body = await res.json()
       const c = body.series.find((x) => x.field === ENUM[0])
-      c.value = c.value.map((_, i) => Math.floor((i * 8) / c.value.length))
+      // Over the visible range, not over the margin the page loads beside it: a label stands only on the area.
+      const at = (t) => Math.floor(((t - WINDOW.from) * 8) / (WINDOW.to - WINDOW.from))
+      c.value = body.ts.map((t) => Math.min(7, Math.max(0, at(t))))
       c.texts = null
       c.text = null
       c.sections = null
@@ -564,13 +548,10 @@ check("Signalbereich bei 390 px: ein Rohfeld heißt über der Spur wie in der Se
   await finish(o)
 })
 
-// The selection reaches the page through the latest `onSelect` of the plot (an effect event): one history entry
-// with the range under the selection, after a change of width without a new build as well.
-check("Auswahl beim Ziehen setzt den Zeitraum, auch nach einer Breitenänderung ohne Neubau", async (browser) => {
+// A new width within the step of `points` (100 px of plot, `pointsFor` in view.ts) brings no new data and no new build.
+check("Neue Breite innerhalb einer Stufe baut das Diagramm nicht neu", async (browser) => {
   const o = await open(browser, series([CELSIUS]), { width: 1280 })
   const { page } = o
-  // A new width within the step of `points` (100 px, `pointsFor` in view.ts): no new data, no new build. 1280 to 1240 px
-  // crossed a step with this stock and built the plot again while the case dragged (2 of 5 runs red, measured).
   const mark = () => page.evaluate(() => {
     const u = document.querySelector('section[aria-label^="Diagramm"] .uplot')
     if (!u.dataset.mark) u.dataset.mark = "1"
@@ -582,23 +563,6 @@ check("Auswahl beim Ziehen setzt den Zeitraum, auch nach einer Breitenänderung 
   await page.setViewportSize({ width: 1280 + delta, height: 1400 })
   await page.waitForFunction((w) => document.querySelector('section[aria-label^="Diagramm"] .uplot').getBoundingClientRect().width === w, before + delta)
   ok("kein Neubau durch die neue Breite", await page.evaluate(() => document.querySelector('section[aria-label^="Diagramm"] .uplot').dataset.mark === "1"), `${before} → ${before + delta} px`)
-  const over = await page.locator('section[aria-label^="Diagramm"] .u-over').first().boundingBox()
-  const at = (f) => [over.x + over.width * f, over.y + over.height / 2]
-  await page.mouse.move(...at(0.25))
-  await page.mouse.down()
-  await page.mouse.move(...at(0.75), { steps: 10 })
-  // WebKit sets no `movementX` for moves of the test driver, uPlot drops them (see "Auswahl beim Ziehen" above).
-  await page.evaluate(([x, y]) => {
-    document.querySelector('section[aria-label^="Diagramm"] .u-over').dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: x, clientY: y, movementX: 4, buttons: 1 }))
-  }, at(0.75))
-  await page.mouse.up()
-  await page.waitForFunction((from) => new URL(location.href).searchParams.get("from") !== String(from), WINDOW.from)
-  const p = new URL(page.url()).searchParams
-  const [from, to] = [Number(p.get("from")), Number(p.get("to"))]
-  const span = WINDOW.to - WINDOW.from
-  log(`Auswahl ${from} bis ${to}, erwartet um ${WINDOW.from + span / 4} bis ${WINDOW.from + (span * 3) / 4}`)
-  ok("Anfang bei einem Viertel (±2 %)", Math.abs(from - (WINDOW.from + span / 4)) <= span * 0.02, `${from}`)
-  ok("Ende bei drei Vierteln (±2 %)", Math.abs(to - (WINDOW.from + (span * 3) / 4)) <= span * 0.02, `${to}`)
   await finish(o)
 })
 

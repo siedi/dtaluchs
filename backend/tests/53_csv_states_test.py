@@ -261,7 +261,7 @@ def test_minutes_read_meta_duckdb_once(
 
     from dtaluchs.core.catalog import default_catalog
     from dtaluchs.core.query.minutes import prepare_minutes
-    from dtaluchs.core.stock.meta import read_meta as real
+    from dtaluchs.core.stock.meta import read_stock as real
 
     stock(settings, make_stock, [1, 1, 2, 2], [38, 38, 37, 37], [0, 0, 1, 1])
     opened: list[int] = []
@@ -270,7 +270,7 @@ def test_minutes_read_meta_duckdb_once(
         opened.append(1)
         return real(data_dir)
 
-    monkeypatch.setattr("dtaluchs.core.query.meta.read_meta", counting)
+    monkeypatch.setattr("dtaluchs.core.query.meta.read_stock", counting)
     prepared = prepare_minutes(
         settings.data_dir, default_catalog(), None, T0, T0 + 4 * STEP, ZoneInfo("UTC")
     )

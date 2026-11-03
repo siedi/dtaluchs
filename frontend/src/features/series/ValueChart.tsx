@@ -21,6 +21,7 @@ import type { DragData, DropData } from "./drag"
 import { type DrawnAxes, shownUnits } from "./duration-axis"
 import { useFieldLabel } from "./field-label"
 import { formatValue, valueColumn } from "./format"
+import type { Viewport } from "./gestures"
 import type { Chart, Layout, PickTarget, SeriesActions, SeriesResponse } from "./types"
 import { fit, unitName, unitsOf } from "./view"
 
@@ -35,7 +36,8 @@ export interface RowProps {
   /** Page under 640 px: side column above the plot. */
   compact: boolean
   actions: SeriesActions
-  onSelect: (from: number, to: number) => void
+  /** The visible time range of the page. */
+  viewport: Viewport
 }
 
 interface ChartRowProps {
@@ -128,7 +130,9 @@ interface PlotProps {
   build: (ctx: ChartContext) => [uPlot.Options, uPlot.AlignedData]
   data: SeriesResponse
   width: number
-  onSelect: (from: number, to: number) => void
+  viewport: Viewport
+  /** Name of the area for the keyboard, e.g. "Diagramm 1": the area is a stop of Tab and moves the range with keys. */
+  name: string
   /** Told after each redraw which unit each axis shows (`ChartContext.onAxes`); a new function does not build the plot again. */
   onAxes?: (shown: string[], catalog: string[]) => void
   /** Drawn over the plot with the store of the crosshair, e.g. the labels of the states. */
@@ -140,10 +144,12 @@ interface PlotProps {
  * The uPlot canvas with the time pill; it is built again when its options, data or theme change. A new width resizes the
  * plot it has: the ResizeObserver reports every frame while the window is dragged, new data comes only every 100 px.
  */
-export function Plot({ build, data, width, onSelect, onAxes, overlay, children }: PlotProps) {
+export function Plot({ build, data, width, viewport, name, onAxes, overlay, children }: PlotProps) {
+  const { t } = useTranslation()
   const host = useRef<HTMLDivElement>(null)
   const plot = useRef<uPlot | null>(null)
   const hovered = useRef(false)
+  const focused = useRef(false)
   const [pointer] = useState(createCursor)
   // x of the crosshair wherever the pointer is on the page (a touch leaves its chart on lifting, the crosshair stays).
   const [crosshair] = useState(createCursor)
@@ -151,16 +157,16 @@ export function Plot({ build, data, width, onSelect, onAxes, overlay, children }
   const { dark } = useTheme()
   // ... and the canvas takes the fallback font until Plex is loaded; the arrival of the font builds it again.
   const fontReady = useFontReady()
-  // The plot calls the latest of both; a new function of the caller is no reason to build again.
-  const select = useEffectEvent((from: number, to: number) => onSelect(from, to))
+  // The plot calls the latest function of the caller; a new one is no reason to build again.
   const axes = useEffectEvent((shown: string[], catalog: string[]) => onAxes?.(shown, catalog))
 
-  // The width the plot is built with: the one of this render, not a reason to build again.
+  const label = t("series.plotArea", { name })
+  // The width the plot is built with: the one of this render, not a reason to build again; so is the name of its area.
   const create = useEffectEvent((el: HTMLDivElement) => {
     const ctx: ChartContext = {
       width,
       data,
-      onSelect: (a, b) => select(a, b),
+      viewport,
       onAxes: (shown, catalog) => axes(shown, catalog),
       onCursor: (row, x, time) => {
         setPointer({ row, time, x })
@@ -169,21 +175,36 @@ export function Plot({ build, data, width, onSelect, onAxes, overlay, children }
       },
     }
     const [opts, columns] = build(ctx)
-    return new uPlot(opts, columns, el)
+    const u = new uPlot(opts, columns, el)
+    u.over.setAttribute("aria-label", label)
+    return u
   })
   useEffect(() => {
     if (!host.current) return
     const u = create(host.current)
     plot.current = u
+    // The plot shows the visible range, not the loaded one; the viewport sets it now and on every new range.
+    const detach = viewport.attach(u)
+    const unbind = viewport.bind(u, u.over)
+    // A plot built again while its area has the focus (keys commit, the answer arrives) hands the focus on.
+    if (focused.current) u.over.focus({ preventScroll: true })
+    focused.current = false
     return () => {
+      focused.current = document.activeElement === u.over
+      unbind()
+      detach()
       u.destroy()
       plot.current = null
       // The old crosshair belongs to the old plot; a label at its place would show values of the new data. The pointer
       // of the page needs no reset here: uPlot reports no cursor after the first draw of the new plot.
       crosshair.set(null)
     }
-  }, [build, data, dark, fontReady, crosshair])
+  }, [build, data, dark, fontReady, crosshair, viewport])
   usePlotWidth(plot, width)
+  // A chart that moves to another place keeps its plot and takes its new name.
+  useEffect(() => {
+    plot.current?.over.setAttribute("aria-label", label)
+  }, [label])
 
   return (
     <div
@@ -204,7 +225,7 @@ export function Plot({ build, data, width, onSelect, onAxes, overlay, children }
 
 /** A chart of curves with its side column. */
 export function ValueChart({ chart, index, ...row }: RowProps & { chart: Chart; index: number }) {
-  const { layout, fields, data, width, anyRight, compact, actions, onSelect } = row
+  const { layout, fields, data, width, anyRight, compact, actions, viewport } = row
   const { t } = useTranslation()
   const labelOf = useFieldLabel()
   const byId = useMemo(() => new Map(fields.map((f) => [f.id, f])), [fields])
@@ -297,7 +318,7 @@ export function ValueChart({ chart, index, ...row }: RowProps & { chart: Chart; 
         </>
       }
       plot={
-        <Plot build={build} data={data} width={width} onSelect={onSelect} onAxes={onAxes}>
+        <Plot build={build} data={data} width={width} viewport={viewport} name={t("series.chartN", { n: index + 1 })} onAxes={onAxes}>
           {drag.hint && <DropHint fit={drag.hint} />}
         </Plot>
       }

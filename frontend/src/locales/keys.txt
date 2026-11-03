@@ -389,6 +389,7 @@ series.bit
 series.chart
 series.chartLabel
 series.chartMenu
+series.chartN
 series.condensed
 series.details.abbr
 series.details.about
@@ -444,6 +445,7 @@ series.noUnit
 series.off
 series.on
 series.onPage
+series.plotArea
 series.raw
 series.rawField
 series.reason.full

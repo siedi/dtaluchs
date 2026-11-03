@@ -103,6 +103,6 @@ async def test_a_busy_writer_is_waited_for_then_503(
     assert calls > 1
 
 
-async def test_minutes_without_a_stock_are_503_at_once(api_client: httpx.AsyncClient) -> None:
+async def test_minutes_without_a_stock_know_no_field(api_client: httpx.AsyncClient) -> None:
     response = await api_client.get("/api/series", params={**FULL, "fields": IDS})
-    assert response.status_code == 503
+    assert response.status_code == 422  # as an empty stock: no layout, no field

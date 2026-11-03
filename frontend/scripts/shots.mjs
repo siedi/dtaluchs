@@ -68,7 +68,6 @@ const changed = (fn) => async (route) => {
   await route.fulfill({ json: fn(body) })
 }
 const metaWith = (fn) => ["**/api/meta", changed(fn)]
-const noImport = ["**/api/meta", json("Es gibt noch keinen Import. Import über die Seite Import starten oder `dtaluchs import` ausführen.")]
 const importRunning = ["**/api/meta", json("Der Import schreibt gerade. Gleich noch einmal versuchen.")]
 const emptyStock = metaWith((m) => ({ ...m, range: null, firmware: [], gaps: [], layouts: [], fields: [] }))
 const statsDown = ["**/api/stats**", json500("Der Import schreibt gerade. Gleich noch einmal versuchen.")]
@@ -92,6 +91,8 @@ const noRun = status(withoutRun)
 const emptyPlace = status((b) => withoutRun(withoutPath(b)))
 const emptyLog = ["**/api/import/files**", changed((b) => ({ ...b, total: 0, counts: { ok: 0, invalid: 0, error: 0 }, sources: { path: 0, upload: 0 }, files: [] }))]
 const noRuns = ["**/api/import/runs**", changed(() => ({ runs: [] }))]
+// A plant before its first import: the server answers as an empty stock, no run, an empty log.
+const noImport = [emptyStock, noRun, emptyLog]
 // An upload with every kind of result; the answers of upload and import are made up, the stock stays as it is.
 const UPLOADED = [
   { name: "luxtronik_251012_0600.dta", status: "ok", new_records: 1440, reason: null },
@@ -265,8 +266,8 @@ const STATES = [
   { name: "ue-uebersicht-dunkel", path: "/", wait: 1500, dark: true },
   { name: "ue-uebersicht-schmal", path: "/", width: 390, wait: 1500 },
   { name: "ue-uebersicht-schmal-dunkel", path: "/", width: 390, wait: 1500, dark: true },
-  { name: "ue-kein-import", path: "/", wait: 9000, route: noImport },
-  { name: "ue-kein-import-dunkel", path: "/", wait: 9000, route: noImport, dark: true },
+  { name: "ue-kein-import", path: "/", routes: noImport },
+  { name: "ue-kein-import-dunkel", path: "/", routes: noImport, dark: true },
   { name: "ue-import-laeuft", path: "/", wait: 9000, route: importRunning },
   { name: "ue-leer", path: "/", route: emptyStock },
   { name: "ue-leer-dunkel", path: "/", route: emptyStock, dark: true },
@@ -284,8 +285,6 @@ const STATES = [
   { name: "ue-leer-schmal", path: "/", width: 390, route: emptyStock },
   { name: "ue-ein-stand-schmal", path: "/", width: 390, wait: 1500, route: oneStand },
   { name: "ue-luecken-offen-schmal", path: "/", width: 390, wait: 1500, click: ALL_GAPS },
-  { name: "ue-noimport", path: "/", wait: 1500, routes: [["**/api/meta", json("Es gibt noch keinen Import. Import über die Seite Import starten oder `dtaluchs import` ausführen.")], noRun, emptyLog] },
-  { name: "ue-noimport-dunkel", path: "/", wait: 1500, routes: [["**/api/meta", json("Es gibt noch keinen Import. Import über die Seite Import starten oder `dtaluchs import` ausführen.")], noRun, emptyLog], dark: true },
   { name: "ue-lauf", path: "/", wait: 1500, route: running },
   { name: "im-hell", path: "/import", wait: 1500 },
   { name: "im-dunkel", path: "/import", wait: 1500, dark: true },
@@ -333,10 +332,9 @@ const STATES = [
   { name: "laedt-dunkel", path: "/series", route: ["**/api/series**", () => {}], dark: true },
   { name: "fehler", path: "/series", wait: 9000, route: ["**/api/series**", json("Der Import schreibt gerade. Gleich noch einmal versuchen.")] },
   { name: "fehler-dunkel", path: "/series", wait: 9000, route: ["**/api/series**", json("Der Import schreibt gerade. Gleich noch einmal versuchen.")], dark: true },
-  { name: "kein-import", path: "/series", wait: 9000, route: ["**/api/meta", json("Es gibt noch keinen Import. Import über die Seite Import starten oder `dtaluchs import` ausführen.")] },
-  { name: "kein-import-dunkel", path: "/series", wait: 9000, route: ["**/api/meta", json("Es gibt noch keinen Import. Import über die Seite Import starten oder `dtaluchs import` ausführen.")], dark: true },
-  { name: "kein-import-503", path: "/series", wait: 9000, routes: [noImport, noRun] },
-  { name: "kein-import-503-schmal", path: "/series", width: 390, wait: 9000, routes: [noImport, noRun] },
+  { name: "kein-import", path: "/series", routes: noImport },
+  { name: "kein-import-dunkel", path: "/series", routes: noImport, dark: true },
+  { name: "kein-import-schmal", path: "/series", width: 390, routes: noImport },
   { name: "kein-import-leer", path: "/series", route: emptyStock },
   { name: "kein-import-leer-schmal", path: "/series", width: 390, route: emptyStock },
   { name: "kz-30t", path: "/stats", hover: [900, 520] },
@@ -348,9 +346,8 @@ const STATES = [
   { name: "kz-keine-laeufe", path: "/stats?from=1782864000&to=1782950400" },
   { name: "kz-laedt", path: "/stats", route: ["**/api/stats**", () => {}] },
   { name: "kz-fehler", path: "/stats", wait: 9000, route: ["**/api/stats**", json("Der Import schreibt gerade. Gleich noch einmal versuchen.")] },
-  { name: "kz-kein-import", path: "/stats", wait: 9000, route: ["**/api/meta", json("Es gibt noch keinen Import. Import über die Seite Import starten oder `dtaluchs import` ausführen.")] },
-  { name: "kz-kein-import-503", path: "/stats", wait: 9000, routes: [noImport, noRun] },
-  { name: "kz-kein-import-503-schmal", path: "/stats", width: 390, wait: 9000, routes: [noImport, noRun] },
+  { name: "kz-kein-import", path: "/stats", routes: noImport },
+  { name: "kz-kein-import-schmal", path: "/stats", width: 390, routes: noImport },
   { name: "kz-kein-import-leer", path: "/stats", route: emptyStock },
   { name: "kz-kein-import-leer-schmal", path: "/stats", width: 390, route: emptyStock },
   { name: "kz-popover", path: "/stats", click: INFO },

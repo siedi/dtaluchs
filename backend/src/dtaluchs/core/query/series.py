@@ -23,10 +23,10 @@ from dtaluchs.core.query.sections import Runs, Sections, build_sections, section
 from dtaluchs.core.query.source import busy_during_rebuild, parquet_sql, present_columns, scratch
 from dtaluchs.core.query.states import StateTexts, list_shape, list_sql, load_state_texts, text_of
 from dtaluchs.core.query.timerange import check_range
-from dtaluchs.core.stock.meta import read_meta
+from dtaluchs.core.stock.meta import read_stock
 from dtaluchs.core.stock.partitions import partitions_between
 
-MIN_POINTS, MAX_POINTS = 100, 4000
+MIN_POINTS, MAX_POINTS = 100, 12_000
 MAX_FIELDS = 36  # 6 charts of 6 curves, measured
 
 type Column = list[float | None]
@@ -74,7 +74,7 @@ def load_series(
     use for them).
     """
     _check(ids, start, end, points)
-    with read_meta(data_dir) as meta:
+    with read_stock(data_dir) as meta:
         known = load_columns(read_layout_columns(meta), catalog)
         states = load_state_texts(meta, {i: known[i] for i in ids if i in known})
         gaps = meta.execute(

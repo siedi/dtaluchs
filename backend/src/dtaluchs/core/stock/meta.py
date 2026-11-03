@@ -1,6 +1,7 @@
 """`meta.duckdb` for reading: the connection, the classing of its errors, the lock of the import, shared lookups.
 
-Only the import writes it (`store.migrations`, `store.importer`); readers here never migrate (CONVENTIONS.md §5).
+Only the import writes it (`store.migrations`, `store.importer`); readers here never migrate it (CONVENTIONS.md §5).
+Before the first import `read_stock` reads an empty log of its own in memory, the file stays untouched.
 """
 
 import fcntl
@@ -8,7 +9,7 @@ import logging
 import threading
 import time
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 
 import duckdb
@@ -16,7 +17,8 @@ import duckdb
 from dtaluchs.core import duck
 from dtaluchs.core.errors import NoImport, Unavailable, WriterBusy
 from dtaluchs.core.stock.names import IMPORT_LOCK, META_DB
-from dtaluchs.core.stock.schema import SCHEMA_VERSION
+from dtaluchs.core.stock.partitions import all_partitions
+from dtaluchs.core.stock.schema import MIGRATIONS, SCHEMA_VERSION
 
 _log = logging.getLogger(__name__)
 _log_lock = threading.Lock()
@@ -130,6 +132,48 @@ def read_meta(data_dir: Path) -> Iterator[duckdb.DuckDBPyConnection]:
 
 _logged: dict[str, float] = {}  # text of a logged error, when it was logged last
 LOG_EVERY_S = 60.0
+
+
+@contextmanager
+def read_stock(data_dir: Path) -> Iterator[duckdb.DuckDBPyConnection]:
+    """`read_meta` for the stock queries; before the first import an empty log.
+
+    No import yet is the normal state of a new plant, not a passing failure: the stock reads as
+    empty, as it does after an import that found no files. That holds only for a plant folder
+    without partitions; a folder that is gone or has partitions but no log keeps `NoImport`, the
+    import has to (re)build the log. `read_meta` itself keeps `NoImport` for the callers that tell
+    the two apart.
+    """
+    with ExitStack() as stack:
+        try:
+            con = stack.enter_context(read_meta(data_dir))
+        except NoImport:
+            if not data_dir.is_dir() or all_partitions(data_dir):
+                raise
+            con = stack.enter_context(_empty_log().cursor())
+        yield con
+
+
+_empty: duckdb.DuckDBPyConnection | None = None
+_empty_lock = threading.Lock()
+
+
+def _empty_log() -> duckdb.DuckDBPyConnection:
+    """The tables of `meta.duckdb` without rows, built once per process; callers only read, each through a cursor.
+
+    An instance of its own: one thread, a small memory limit and no spill folder, as empty tables
+    need none of the limits of the shared instance.
+    """
+    global _empty
+    with _empty_lock:
+        if _empty is None:
+            con = duckdb.connect(
+                ":memory:", config={"threads": 1, "memory_limit": "16MB", "temp_directory": ""}
+            )
+            for step in MIGRATIONS:
+                con.execute(step)
+            _empty = con
+        return _empty
 
 
 def _meta_failed(err: duckdb.Error, data_dir: Path) -> None:

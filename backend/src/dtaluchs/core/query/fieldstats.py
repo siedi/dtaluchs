@@ -32,7 +32,7 @@ from dtaluchs.core.query.runcounter import lookback_files, over_runs, run_fields
 from dtaluchs.core.query.source import busy_during_rebuild, parquet_sql, present_columns, scratch
 from dtaluchs.core.query.states import StateTexts, group_of, list_sql, load_state_texts
 from dtaluchs.core.query.timerange import check_range
-from dtaluchs.core.stock.meta import read_meta
+from dtaluchs.core.stock.meta import read_stock
 from dtaluchs.core.stock.partitions import GAP_SECONDS, partitions_between
 from dtaluchs.core.stock.sql import quote
 
@@ -207,7 +207,7 @@ def _range(
     """Columns and `when` from `meta.duckdb`; the state texts only for a caller that counts states,
     the field list only where it is asked for (it aggregates the partitions per layout, see `meta._firmware`)."""
     check_range(start, end)
-    with read_meta(data_dir) as meta:
+    with read_stock(data_dir) as meta:
         rows = read_layout_columns(meta)
         columns = load_columns(rows, catalog)
         states = load_state_texts(meta, columns) if with_states else {}

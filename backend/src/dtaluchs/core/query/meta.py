@@ -10,7 +10,7 @@ from dtaluchs.core.catalog import Catalog
 from dtaluchs.core.query.fields import Field, LayoutColumns, load_fields, read_layout_columns
 from dtaluchs.core.query.source import parquet_sql, present_columns, scratch
 from dtaluchs.core.query.states import StateTexts, build_state_texts, read_state_rows
-from dtaluchs.core.stock.meta import read_meta
+from dtaluchs.core.stock.meta import read_stock
 from dtaluchs.core.stock.partitions import all_partitions
 
 
@@ -111,11 +111,11 @@ def stock_fields(data_dir: Path, rows: LayoutColumns, catalog: Catalog) -> list[
 
 
 def load_meta(data_dir: Path, catalog: Catalog, *, with_states: bool = False) -> StockMeta:
-    """Read `meta.duckdb` and aggregate the partitions per layout; raises `Unavailable` before the first import.
+    """Read `meta.duckdb` and aggregate the partitions per layout; an empty stock before the first import.
 
     `with_states` reads the texts of the state fields in the same read of `meta.duckdb`.
     """
-    with read_meta(data_dir) as con:
+    with read_stock(data_dir) as con:
         layouts = [
             LayoutInfo(*row)
             for row in con.execute(

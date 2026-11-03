@@ -4,7 +4,7 @@ import { Note } from "@/components/Note"
 import { ActionSkeleton, Section, TextSkeleton } from "@/components/Section"
 import { Button } from "@/components/ui/button"
 import { useCapabilities } from "@/shared/config/queries"
-import { isNoImportError, isNoRun, showNoData } from "@/shared/import/nodata"
+import { isNothingYet, isNoRun } from "@/shared/import/nodata"
 import { useImportFiles, useImportStatus, WHOLE_LOG } from "@/shared/import/queries"
 import { useMeta } from "@/shared/meta/queries"
 import { formatInput, formatNumber } from "@/shared/time/format"
@@ -20,27 +20,25 @@ export function OverviewPage() {
   const { t } = useTranslation()
   const meta = useMeta()
   const status = useImportStatus()
-  // The log answers at once, also before the first import; `/api/meta` ends as an error only after its retries.
   const log = useImportFiles(WHOLE_LOG, 1)
   const counts = log.data ? log.data.counts : log.isError ? undefined : null
-  const noRun = isNoRun(status.data)
-  const emptyLog = counts ? counts.ok + counts.invalid + counts.error === 0 : false
-  // Nothing imported and nothing going on: no need to wait for the failure of `meta`.
-  // A stock range in `meta` is data, whatever the log says (it may be empty after a rebuild of the log alone).
-  const hasRange = meta.data?.range != null
-  if (showNoData({ noRun, emptyLog, metaFailed: meta.isError && !meta.data && isNoImportError(meta.error), hasRange })) return <NoData />
   if (meta.isPending) return <Loading />
   // A failed refetch keeps the page with the data it has.
   if (meta.isError && !meta.data) {
-    // The text of the server tells the cases apart: no import yet, import running, old data directory.
+    // The text of the server tells the cases apart: import running, old data directory, log missing beside partitions.
     return <Note title={t("overview.unavailable")} text={meta.error.message} action={t("overview.retry")} onAction={() => void meta.refetch()} error />
   }
+  // A stock range in `meta` is data, whatever the log says (it may be empty after a rebuild of the log alone).
   const { range } = meta.data
   if (!range) {
+    // The section Import comes once status and log have answered, and only if they show something: before the
+    // first import the page says "no data" alone.
+    const emptyLog = counts ? counts.ok + counts.invalid + counts.error === 0 : false
+    const withImport = !status.isPending && !log.isPending && !isNothingYet({ noRun: isNoRun(status.data), emptyLog })
     return (
       <>
         <NoData />
-        <ImportSection counts={counts} />
+        {withImport && <ImportSection counts={counts} />}
       </>
     )
   }

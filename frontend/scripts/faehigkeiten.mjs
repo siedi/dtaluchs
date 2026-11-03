@@ -108,7 +108,7 @@ async function stopServers() {
 // ---------------------------------------------------------------- pages
 /**
  * A browser context against one server. Every write is aborted and noted (fails the case at `close()`), as are errors
- * of the page and of the console; a failed load of a resource is no error here (503 of `/api/meta` without stock).
+ * of the page and of the console; a failed load of a resource is no error here (a 503 while an import writes).
  */
 async function open(browser, server, path, { width = 1280, height = 900, touch = false } = {}) {
   const ctx = await browser.newContext({

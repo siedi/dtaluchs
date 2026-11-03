@@ -1,6 +1,6 @@
 [project]
 name = "dtaluchs"
-version = "0.5.8"
+version = "0.5.9"
 description = "Auswertung der DTA-Dateien einer Luxtronik-Wärmepumpensteuerung"
 license = "Apache-2.0"
 requires-python = ">=3.14"

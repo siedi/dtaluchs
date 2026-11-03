@@ -7,8 +7,6 @@ import { useCanBack } from "@/lib/use-can-back"
 import { useWidth } from "@/lib/use-width"
 import { CsvButton } from "@/shared/export/CsvButton"
 import { NoImport } from "@/shared/import/NoImport"
-import { isNoImport } from "@/shared/import/nodata"
-import { useImportStatus } from "@/shared/import/queries"
 import { useMeta } from "@/shared/meta/queries"
 import type { Meta } from "@/shared/meta/types"
 import { ShowSwitch } from "@/shared/show/ShowSwitch"
@@ -35,13 +33,11 @@ import { autoPeriod, parsePeriod, PERIODS } from "./view"
 export function StatsPage() {
   const { t } = useTranslation()
   const meta = useMeta()
-  const status = useImportStatus()
   if (meta.isPending) return <Note title={t("stats.loading")} />
-  // No stock and no run: the way in is the page Import, as on the start page.
-  if (meta.isError && !meta.data && isNoImport(meta.error, status.data)) return <NoImport />
   if (meta.isError) {
     return <Note title={t("stats.unavailable")} text={meta.error.message} action={t("stats.retry")} onAction={() => void meta.refetch()} error />
   }
+  // No stock, also before the first import: the way in is the page Import, as on the start page.
   if (!meta.data.range) return <NoImport />
   return <StatsView stock={meta.data.range} />
 }

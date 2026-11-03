@@ -36,6 +36,16 @@ const expect = (what, got, want) => {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 /** The parameters of a url as sorted "key=value" strings. */
 const paramsOf = (url) => [...new URL(url, base).searchParams].map(([k, v]) => `${k}=${v}`).sort()
+/**
+ * The query of the CSV "as shown" from the last chart request: the page loads a margin around its range, the CSV takes the
+ * range of the page (`FROM` to `TO`) and the points of that range, which are the chart's points over the loaded share.
+ */
+const shownParams = (url) => {
+  const q = new URL(url, base).searchParams
+  const loaded = Number(q.get("to")) - Number(q.get("from"))
+  const points = Math.round((Number(q.get("points")) * (TO - FROM)) / loaded / 100) * 100
+  return paramsOf(url).filter((p) => !/^(from|to|points)=/.test(p)).concat([`from=${FROM}`, `to=${TO}`, `points=${points}`]).sort()
+}
 const isCheck = (u) => new URL(u).searchParams.get("check") === "true"
 
 const SERIES = { path: "/series", query: RANGE, ready: (page) => page.locator("canvas").first().waitFor() }
@@ -230,12 +240,12 @@ async function narrow(browser, page, menu) {
 const seriesEntries = [
   {
     label: "Aktuelle Darstellung", path: "/api/series", file: NAMED("zeitreihen"),
-    // The same fields and points as the chart request, plus the format.
-    params: (o) => [...paramsOf(o.series.at(-1)), "format=csv"],
+    // The same fields as the chart request, its range without the margin and the points of that range, plus the format.
+    params: (o) => [...shownParams(o.series.at(-1)), "format=csv"].sort(),
   },
   {
     label: "Minutenwerte (ausgewählte Felder)", path: "/api/series", file: NAMED("minutenwerte"),
-    params: (o) => paramsOf(o.series.at(-1)).filter((p) => !p.startsWith("points=")).concat(["format=csv", "raw=true"]),
+    params: (o) => shownParams(o.series.at(-1)).filter((p) => !p.startsWith("points=")).concat(["format=csv", "raw=true"]).sort(),
   },
   { label: "Minutenwerte (alle Felder)", path: "/api/series", file: NAMED("minutenwerte-alle"), params: () => [`from=${FROM}`, `to=${TO}`, "format=csv", "raw=true"].sort() },
 ]

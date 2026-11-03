@@ -14,7 +14,7 @@ const FIELDS = [
 const byId = (id: string) => FIELDS.find((f) => f.id === id)!
 
 describe("points", () => {
-  it("asks for one point per pixel, rounded and kept within 100 to 4000", () => {
+  it("asks for one point per pixel, rounded and kept within 100 to 4000 (visible range)", () => {
     expect([pointsFor(1149), pointsFor(20), pointsFor(9000)]).toEqual([1100, 100, 4000])
   })
 })

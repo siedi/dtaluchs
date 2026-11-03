@@ -6,6 +6,7 @@
 // The oracle is the answer of `/api/series` that the page itself loaded, formatted here with an own copy of the rule;
 // the axis is read from the texts the canvas draws (the canvas has no text to read).
 import { chromium, webkit } from "@playwright/test"
+import { isAbort } from "./run-lib.mjs"
 
 const [, , base, only] = process.argv
 if (!base) {
@@ -76,8 +77,8 @@ async function open(browser, path, { width = 1280, height = 1000, dark = false }
   page.setDefaultTimeout(20000)
   const problems = []
   const answers = []
-  page.on("pageerror", (e) => problems.push(e.message))
-  page.on("console", (m) => m.type() === "error" && problems.push(m.text()))
+  page.on("pageerror", (e) => !isAbort(e.message) && problems.push(e.message))
+  page.on("console", (m) => m.type() === "error" && !isAbort(m.text()) && problems.push(m.text()))
   page.on("response", async (r) => {
     const u = new URL(r.url())
     if (u.pathname === "/api/series" && !u.searchParams.has("format")) answers.push(await r.json().catch(() => null))
@@ -215,7 +216,7 @@ check("Zeiger: 86.369 s bis 86.400 s lesen als 23 h 59 min und als Tag (gespielt
 
 // The plot is 160 px high, which holds 4,7 steps of 34 px, so one hour of the axis shows 15 min steps
 // where the 152 px of before showed 30 min. The real hour of the stock spans 80 min on the axis (two timers, uPlot adds
-// a tenth), too wide for 15 min steps in 160 px; so the answer is played: a runtime that climbs to 3700 s makes the axis
+// a tenth), too wide for 15 min steps in 160 px; so the answer is played: a runtime that climbs to 3700 s over the hour makes the axis
 // 68,5 min wide, which 160 px hold in steps of 15 min and 152 px did not.
 check("Achse bei 1 Stunde (gespielt, Wertebereich 68,5 min): Teilstriche 0 15 30 45 60", async (browser) => {
   const w = WINDOWS.h1
@@ -224,7 +225,8 @@ check("Achse bei 1 Stunde (gespielt, Wertebereich 68,5 min): Teilstriche 0 15 30
     const res = await route.fetch()
     const body = await res.json()
     const c = body.series.find((s) => s.field === RUNTIME)
-    c.value = c.value.map((_, i) => Math.round((i / (c.value.length - 1)) * 3700))
+    // Climbs over the hour of the URL, whatever margin the page loads around it: the axis counts the visible rows only.
+    c.value = body.ts.map((t) => Math.round(Math.min(Math.max((t - w.from) / (w.to - w.from), 0), 1) * 3700))
     await route.fulfill({ response: res, json: body })
   })
   await o.page.reload()

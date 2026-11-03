@@ -64,7 +64,7 @@ function SectionValue({ id, data, drawn }: Omit<LaneValueProps, "kind">) {
  * reachable.
  */
 export function SignalArea(row: Omit<RowProps, "data"> & { data: ShownSeries | null }) {
-  const { layout, fields, data, width, anyRight, compact, actions, onSelect } = row
+  const { layout, fields, data, width, anyRight, compact, actions, viewport } = row
   const { t } = useTranslation()
   const labelOf = useFieldLabel()
   const byId = useMemo(() => new Map(fields.map((f) => [f.id, f])), [fields])
@@ -148,7 +148,8 @@ export function SignalArea(row: Omit<RowProps, "data"> & { data: ShownSeries | n
             build={build}
             data={data}
             width={width}
-            onSelect={onSelect}
+            viewport={viewport}
+            name={t("series.signalArea")}
             overlay={(pointer) =>
               signals.map((item, n) =>
                 byId.get(item.id)?.kind === "enum" ? (

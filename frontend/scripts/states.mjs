@@ -1,7 +1,7 @@
 // Checks of the state texts in the series view in Chromium and
 // WebKit, not a unit test. Starts no server:
 //   node scripts/states.mjs http://127.0.0.1:<PORT> [Fallname] [Bildpräfix]
-// Needs a running `./dtaluchs serve` with imported data: 2026-10 with `operating_state` code 5, which the catalog
+// Needs a running `./dtaluchs serve` with imported data: in the last 7 days `operating_state` code 5, which the catalog
 // translates to "keine Anforderung", and `compressor_stop_reason` code 37 with a head text. Prints "ok" or the
 // error per case and engine; exit code 1 on any error. Changes nothing in the stock. With a picture prefix (a
 // path in $TMPDIR) it writes one picture per engine: <prefix>-<engine>.png, the pointer on the signal area at
@@ -18,6 +18,20 @@ const meta = await (await fetch(`${base}/api/meta`)).json()
 const TO = meta.range.last_ts + 1
 const FROM = TO - 7 * 86400
 const YEAR_FROM = TO - 366 * 86400
+/**
+ * 6 h of raw rows in which `operating_state` shows code 5, around the last such section of the last 7 days: the table
+ * cases need the code, the end of the stock need not have it.
+ */
+const RAW = await (async () => {
+  const q = new URLSearchParams({ fields: "operating_state", from: String(FROM), to: String(TO), points: "4000" })
+  const body = await (await fetch(`${base}/api/series?${q}`)).json()
+  const c = body.series[0]
+  const starts = c.sections ? c.sections.start.filter((_, i) => c.sections.value[i] === 5) : body.ts.filter((_, i) => c.value[i] === 5)
+  if (starts.length === 0) throw new Error("Bestand: in den letzten 7 Tagen kein Betriebszustand 5")
+  const at = starts[starts.length - 1]
+  const to = Math.min(TO, at + 3 * 3600)
+  return { from: to - 6 * 3600, to }
+})()
 const SIGNALS = "operating_state:0,compressor_stop_reason:1,lpc_module_state:2"
 const LABELS = { operating_state: "Betriebszustand", compressor_stop_reason: "Abschaltgrund Verdichter" }
 const LONG = "LPC_ADJUST_MAXIMUM_SPEED_DYNAMICALLY"
@@ -230,7 +244,7 @@ check("Tabelle: Zeilen der Zustände zeigen dieselben Texte wie die Antwort", as
 })
 
 check("Tabelle: Rohwerte (kleiner Zeitraum): Zellen „<Code>: <Text>“, „5: keine Anforderung“", async (browser) => {
-  const { page, data } = await open(browser, { search: `from=${TO - 6 * 3600}&to=${TO}&s=${SIGNALS}&show=table` })
+  const { page, data } = await open(browser, { search: `from=${RAW.from}&to=${RAW.to}&s=${SIGNALS}&show=table` })
   await page.locator("table tbody tr").first().waitFor()
   const heads = await page.locator("table thead th").allInnerTexts()
   const cellsOf = async (id) => {
@@ -265,7 +279,7 @@ const withoutText = async (route) => {
 }
 
 check("Tabelle: ein Code ohne Text zeigt nur den Code", async (browser) => {
-  const { page } = await open(browser, { search: `from=${TO - 6 * 3600}&to=${TO}&s=${SIGNALS}&show=table`, route: withoutText })
+  const { page } = await open(browser, { search: `from=${RAW.from}&to=${RAW.to}&s=${SIGNALS}&show=table`, route: withoutText })
   await page.locator("table tbody tr").first().waitFor()
   const heads = await page.locator("table thead th").allInnerTexts()
   const col = heads.findIndex((h) => h.trim() === LABELS.operating_state)

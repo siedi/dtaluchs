@@ -1,11 +1,15 @@
 import type { components } from "@/lib/api-types"
 import type { FieldInfo } from "@/shared/meta/types"
+import type { TimeRange } from "@/shared/time/range"
 
 export type SeriesResponse = components["schemas"]["SeriesResponse"]
 export type Curve = components["schemas"]["Curve"]
 export type Sections = components["schemas"]["Sections"]
-/** An answer with the `points` it was asked with: the limit of sections is 2 × `points`. */
-export type ShownSeries = SeriesResponse & { points: number }
+/**
+ * An answer with the fields and `points` it was asked with (the limit of sections is 2 × `points`) and `loaded`, the range
+ * it was asked for: the visible range with its margin, cut at the stock.
+ */
+export type ShownSeries = SeriesResponse & { fields: string[]; points: number; loaded: TimeRange }
 
 /** A field in a chart with its colour slot, kept while other fields come and go. */
 export interface PanelItem {

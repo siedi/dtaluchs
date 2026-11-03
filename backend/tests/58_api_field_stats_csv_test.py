@@ -182,7 +182,7 @@ async def test_csv_takes_the_field_list_from_the_read_of_the_figures(
 ) -> None:
     stock(settings, make_stock)
     reads = 0
-    real = stock_meta.read_meta
+    real = stock_meta.read_stock
 
     def counted(data_dir: Path) -> Any:
         nonlocal reads
@@ -192,8 +192,8 @@ async def test_csv_takes_the_field_list_from_the_read_of_the_figures(
     def refuse(*args: object, **kwargs: object) -> None:
         raise AssertionError("the field list was read apart from the figures")
 
-    monkeypatch.setattr("dtaluchs.core.query.fieldstats.read_meta", counted)
-    monkeypatch.setattr(meta, "read_meta", refuse)  # `load_meta` reads through it
+    monkeypatch.setattr("dtaluchs.core.query.fieldstats.read_stock", counted)
+    monkeypatch.setattr(meta, "read_stock", refuse)  # `load_meta` reads through it
     response = await api_client.get("/api/field-stats", params={**RANGE, "format": "csv"})
     assert response.status_code == 200
     assert reads == 1

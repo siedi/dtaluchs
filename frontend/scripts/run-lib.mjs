@@ -11,6 +11,13 @@ export function serverPort(url) {
   return Number(u.port || (u.protocol === "https:" ? 443 : 80))
 }
 
+/**
+ * A console error of a request the page or the browser aborted, no error of the page: WebKit reports a fetch cancelled
+ * while a page or context closes as "… due to access control checks." (dauer.mjs, one of five runs, 2026-11-03),
+ * Chromium as "AbortError" or "net::ERR_ABORTED".
+ */
+export const isAbort = (text) => /due to access control checks|AbortError|ERR_ABORTED|cancelled/.test(text)
+
 export const PARALLEL = Math.max(1, Number(process.env.PARALLEL) || 4)
 export const ENGINES = [["chromium", chromium], ["webkit", webkit]].filter(([n]) => !process.env.ENGINES || process.env.ENGINES.split(",").includes(n))
 

@@ -275,11 +275,11 @@ async def test_a_valid_check_does_not_scan_the_stock_for_headers(
     assert response.status_code == 204
 
 
-async def test_csv_without_a_stock_is_503_at_once(api_client: httpx.AsyncClient) -> None:
+async def test_csv_without_a_stock_knows_no_field(api_client: httpx.AsyncClient) -> None:
     response = await api_client.get(
         "/api/series", params={"fields": ["flow_temp"], "from": T0, "to": T0 + 600, "format": "csv"}
     )
-    assert response.status_code == 503
+    assert response.status_code == 422  # as an empty stock: no layout, no field
 
 
 @pytest.mark.parametrize("loader", ["load_meta", "load_series"])

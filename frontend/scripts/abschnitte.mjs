@@ -54,6 +54,8 @@ function formatDuration(seconds) {
   return `${seconds} s`
 }
 const pointsFor = (plotWidth) => Math.min(4000, Math.max(200, Math.round(plotWidth / 100) * 100))
+/** `points` of the page for a view that ends at the end of the stock: one span before it is loaded, none behind it. */
+const loadedPoints = (plotWidth) => Math.round((pointsFor(plotWidth) * 2) / 100) * 100
 const state = (code, text) => (text ? `${code}: ${text}` : String(code))
 const curveOf = (data, id) => data.series.find((c) => c.field === id)
 const sectionText = (curve, i) => {
@@ -108,12 +110,16 @@ async function open(browser, { width = 1280, from, to = TO, curves = "", route, 
   if (route) await page.route("**/api/series?*", route)
   const answer = page.waitForResponse((r) => r.url().includes("/api/series?") && r.status() === 200)
   await page.goto(`${base}/series?from=${from}&to=${to}&p=${curves}&s=${SIGNALS}`)
-  const data = await (await answer).json()
+  const response = await answer
+  const data = await response.json()
+  // The page loads with a margin and shows the range of the URL: the plot maps times over `view`, not over the answer.
+  data.view = { from, to }
+  const points = Number(new URL(response.url()).searchParams.get("points"))
   await page.locator('section[aria-label="Signale"] canvas').waitFor()
   await page.waitForFunction(() => [...document.querySelectorAll("canvas")].every((c) => c.width > 0))
   await page.evaluate(() => document.fonts.ready)
   await frames(page)
-  return { page, data, problems, close: () => ctx.close() }
+  return { page, data, points, problems, close: () => ctx.close() }
 }
 const frames = (page) => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
 
@@ -130,11 +136,12 @@ async function plotOf(page, data, scale = 1) {
   ok(`Gerätepixel ${scale}`, dpr === scale, String(dpr))
   const left = over.x - canvas.x
   const [dLeft, dWidth] = [Math.round(left * dpr), Math.round(over.width * dpr)]
-  const pos = (t) => dLeft + ((t - data.from) / (data.to - data.from)) * dWidth
-  const timeAt = (x) => data.from + ((x - left) / over.width) * (data.to - data.from)
+  const view = data.view ?? data
+  const pos = (t) => dLeft + ((t - view.from) / (view.to - view.from)) * dWidth
+  const timeAt = (x) => view.from + ((x - left) / over.width) * (view.to - view.from)
   const compact = canvas.width < 640 - 32
   const laneTop = (n) => (compact ? COMPACT.top + n * COMPACT.row + COMPACT.label : SIGNALS_TOP + n * ROW) + LANE_GAP / 2
-  return { canvas, over, left, pos, timeAt, laneTop, dpr, dLeft, dWidth, width: Math.round(canvas.width * dpr) }
+  return { canvas, over, left, view, pos, timeAt, laneTop, dpr, dLeft, dWidth, width: Math.round(canvas.width * dpr) }
 }
 
 /** Colours of one pixel row of the canvas of the signal area, as names of the tokens (series-1 … series-8, ground). */
@@ -190,8 +197,11 @@ check("30 Tage, 1280 px: die Spur zeigt jeden Abschnitt wie berechnet, Abtauen a
         if (got[p] !== want) wrong.push(`${p}: ${got[p]} statt ${want}`)
       }
       ok(`${dark ? "dunkel" : "hell"}: Pixel wie berechnet`, wrong.length === 0, `${wrong.length} falsch, ${wrong.slice(0, 5).join("; ")}`)
-      const defrosts = curve.sections.value.filter((v) => v === DEFROST).length
-      const seen = new Set([...L.owner].filter((i) => i >= 0 && curve.sections.value[i] === DEFROST)).size
+      // Two defrosts that start within one pixel share it: the stroke of the later one lies on the earlier one.
+      const defrostPixels = new Set()
+      curve.sections.value.forEach((v, i) => v === DEFROST && wholeIn(curve.sections, i, plot.view) && defrostPixels.add(Math.floor(plot.pos(curve.sections.start[i]))))
+      const defrosts = defrostPixels.size
+      const seen = new Set([...L.owner].filter((i) => i >= 0 && curve.sections.value[i] === DEFROST && wholeIn(curve.sections, i, plot.view))).size
       ok("Abtauen im Zeitraum", defrosts > 0)
       ok(`Abtauvorgänge sichtbar: ${seen} von ${defrosts}`, seen === defrosts)
       expect("keine Fehler im Browser", o.problems, [])
@@ -207,14 +217,16 @@ check("30 Tage: Code im Abschnitt, wenn er breiter ist als 22 px", async ({ brow
     const curve = curveOf(o.data, OS)
     const plot = await plotOf(o.page, o.data)
     const S = curve.sections
-    const want = S.start.filter((s, i) => plot.pos(Math.min(S.end[i], o.data.to)) - plot.pos(s) > 22).length
+    // Only sections that lie wholly in the view: of the others the visible part may be narrower than the section.
+    const whole = (i) => wholeIn(S, i, plot.view)
+    const want = S.start.filter((s, i) => whole(i) && plot.pos(Math.min(S.end[i], o.data.to)) - plot.pos(s) > 22).length
     // Text pixels: in the middle row of the lane, a pixel that is neither ground nor a series colour.
     const mid = await rowColours(o.page, plot.laneTop(0) + 10)
     const inked = new Set()
     S.start.forEach((s, i) => {
       const a = plot.pos(s)
       const b = plot.pos(Math.min(S.end[i], o.data.to))
-      if (b - a <= 22) return
+      if (!whole(i) || b - a <= 22) return
       for (let p = Math.floor((a + b) / 2) - 3; p <= Math.ceil((a + b) / 2) + 3; p++) if (mid[p] === "?") inked.add(i)
     })
     ok("breite Abschnitte im Zeitraum", want > 0)
@@ -274,25 +286,32 @@ check("30 Tage: Etikett und Wertspalte nennen beim Wandern stets, was die Spur z
   }
 })
 
-/** The answer with the widest section of `operating_state` taken out: where it stood the lane shows no section. */
-const withoutWidest = async (route) => {
+/** Whether section `i` lies in the view at least in part (the answer also holds the margin around it). */
+const inView = (S, i, view) => S.end[i] > view.from && S.start[i] < view.to
+const wholeIn = (S, i, view) => S.start[i] >= view.from && S.end[i] <= view.to
+
+/** The answer with the widest section of `operating_state` in `view` taken out: where it stood the lane shows no section. */
+const withoutWidestIn = (view, removed) => async (route) => {
   const body = await (await route.fetch()).json()
   const S = curveOf(body, OS).sections
-  let w = 0
-  S.start.forEach((s, i) => S.end[i] - s > S.end[w] - S.start[w] && (w = i))
+  let w = -1
+  S.start.forEach((s, i) => inView(S, i, view) && (w < 0 || S.end[i] - s > S.end[w] - S.start[w]) && (w = i))
+  removed.push(S.start[w], S.end[w])
   for (const k of ["start", "end", "value", "text"]) S[k].splice(w, 1)
   await route.fulfill({ json: body })
 }
 
 check("Kein Abschnitt unter dem Zeiger: kein Etikett, Wertspalte leer", async ({ browser }) => {
-  const o = await open(browser, { from: FROM30, route: withoutWidest })
+  const removed = []
+  const o = await open(browser, { from: FROM30, route: withoutWidestIn({ from: FROM30, to: TO }, removed) })
   try {
     const curve = curveOf(o.data, OS)
     const plot = await plotOf(o.page, o.data)
     const L = layout(curve.sections, plot.pos, o.data.to, plot.width)
-    let p = -1
-    for (let x = Math.ceil(plot.left) + 4; x < plot.left + plot.over.width - 4 && p < 0; x++) if (hit(L, x) < 0) p = x
-    ok("Stelle ohne Abschnitt", p >= 0)
+    // The middle of the visible part of the section that was taken out.
+    const mid = (Math.max(removed[0], plot.view.from) + Math.min(removed[1], plot.view.to)) / 2
+    const p = Math.round(plot.left + ((mid - plot.view.from) / (plot.view.to - plot.view.from)) * plot.over.width)
+    ok("Stelle ohne Abschnitt", hit(L, p) < 0, `Pixel ${p}`)
     await pointTo(o.page, plot, p)
     expect(`Pixel ${p}`, await shown(o.page, OS), { label: null, side: "" })
     // The pill still names the time under the pointer.
@@ -302,11 +321,14 @@ check("Kein Abschnitt unter dem Zeiger: kein Etikett, Wertspalte leer", async ({
   }
 })
 
-/** Sections of `operating_state` over 365 days, asked with points 4000: under 8000, so the answer has them all. */
+/**
+ * Sections of `operating_state` over what the page loads for 365 days: that and one more year before it (the margin on the
+ * right is cut at the end of the stock). Asked with points 4000: under 8000, so the answer has them all.
+ */
 async function sectionsOver365() {
-  const r = await (await fetch(`${base}/api/series?fields=${OS}&from=${FROM365}&to=${TO}&points=4000`)).json()
+  const r = await (await fetch(`${base}/api/series?fields=${OS}&from=${FROM365 - 365 * DAY}&to=${TO}&points=4000`)).json()
   const s = curveOf(r, OS).sections
-  ok("365 Tage mit points 4000: Abschnitte in der Antwort", s !== null)
+  ok("730 Tage mit points 4000: Abschnitte in der Antwort", s !== null)
   return s.start.length
 }
 
@@ -315,7 +337,7 @@ check("365 Tage bei 1280 px: Betriebszustand fällt zurück, „≈“ hinter de
   const o = await open(browser, { from: FROM365 })
   try {
     const plot = await plotOf(o.page, o.data)
-    const limit = 2 * pointsFor(1280 - 48 - 280)
+    const limit = 2 * o.points
     ok(`mehr Abschnitte (${count}) als die Grenze ${limit}`, count > limit)
     expect("Antwort ohne Abschnitte", curveOf(o.data, OS).sections, null)
     // Every state lane without sections carries the mark, the bit none.
@@ -400,9 +422,9 @@ check("365 Tage bei 390 px ohne Maus: „≈“ über der Spur hinter dem Namen,
 
 check("365 Tage bei einer Zeichenbreite über 1300 px: kein Rückfall, kein „≈“ am Betriebszustand", async ({ browser }) => {
   const count = await sectionsOver365()
-  // 1640 px: 1312 px for the plot, points 1300, limit 2600.
+  // 1640 px: 1312 px for the plot, points 1300 for the range; two spans are loaded, so 2600 and limit 5200.
   const width = 1640
-  const limit = 2 * pointsFor(width - 48 - 280)
+  const limit = 2 * loadedPoints(width - 48 - 280)
   ok(`Abschnitte (${count}) bis zur Grenze ${limit}`, count <= limit)
   const o = await open(browser, { from: FROM365, width })
   try {
@@ -550,7 +572,7 @@ check("Hinter dem Ende der letzten Zeile: Kurve und Bit zeigen nichts, das Zeits
       }, label)
     const curveLabel = meta.fields.find((f) => f.id === CURVE).label.de
     const bitLabel = meta.fields.find((f) => f.id === BIT).label.de
-    const px = (t) => Math.round(plot.left + ((t - o.data.from) / (o.data.to - o.data.from)) * plot.over.width)
+    const px = (t) => Math.round(plot.left + ((t - plot.view.from) / (plot.view.to - plot.view.from)) * plot.over.width)
     // Inside the last hour: values; three hours after the last record: none, the pill names the time.
     await pointTo(o.page, plot, px(last - 1800), 2)
     ok("vor dem Ende: Kurve mit Wert", /^-?\d+,\d$/.test(await valueOf(curveLabel)), await valueOf(curveLabel))
@@ -580,7 +602,7 @@ check("Verdichtet: die letzte Zeile gilt bis ts + bucket_seconds, danach zeigen 
     const plot = await plotOf(o.page, o.data)
     const ts = o.data.ts
     const end = ts[ts.length - 1] + o.data.bucket_seconds
-    const px = (t) => plot.left + ((t - o.data.from) / (o.data.to - o.data.from)) * plot.over.width
+    const px = (t) => plot.left + ((t - plot.view.from) / (plot.view.to - plot.view.from)) * plot.over.width
     ok("Intervall mindestens 6 px breit", px(end) - px(ts[ts.length - 1]) >= 6, String(px(end) - px(ts[ts.length - 1])))
     const valueOf = (label) =>
       o.page.evaluate((label) => {
@@ -613,11 +635,11 @@ check("Karte „≈“ nach einer Breitenänderung, solange die alte Antwort ste
   }
   const o = await open(browser, { from: FROM365, route: slow })
   try {
-    const limit = 2 * pointsFor(1280 - 48 - 280)
+    const limit = 2 * o.points
     expect("Antwort ohne Abschnitte", curveOf(o.data, OS).sections, null)
     await o.page.setViewportSize({ width: 1640, height: 900 })
     await o.page.waitForFunction(() => document.querySelector('section[aria-label="Signale"] canvas')?.getBoundingClientRect().width > 1250)
-    ok("Breite gibt andere points", 2 * pointsFor(1640 - 48 - 280) !== limit)
+    ok("Breite gibt andere points", 2 * loadedPoints(1640 - 48 - 280) !== limit)
     const mark = o.page.locator(`[data-fallback="${OS}"]`)
     const mb = await mark.boundingBox()
     await o.page.mouse.move(mb.x + mb.width / 2, mb.y + mb.height / 2, { steps: 3 })

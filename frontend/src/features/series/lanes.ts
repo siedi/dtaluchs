@@ -9,7 +9,7 @@ import {
 } from "./chart"
 import type { FieldLabel } from "./field-label"
 import type { LaneLayouts } from "./lane-layouts"
-import { layoutSections, type SectionLayout } from "./sections"
+import { layoutSections, rowsIn, segmentLabels, type SectionLayout } from "./sections"
 import type { PanelItem, Sections, SeriesResponse } from "./types"
 
 const VALUE_ROOM = 72 // narrow pages: room right of the name above a lane for the value under the pointer
@@ -63,6 +63,9 @@ function drawLanes(
   const inks = colors.map((c) => inkOn(c, inkLight, inkDark))
   // A row lasts until the next one, the last one and the one before a gap for one interval.
   const step = data.bucket_seconds ?? RAW_STEP
+  // The page loads a margin beside the view: only rows and sections that reach into the x scale are drawn.
+  const range: [number, number] = [u.scales.x?.min ?? -Infinity, u.scales.x?.max ?? Infinity]
+  const [first, last] = rowsIn(x, range[0], range[1])
   ctx.save()
   const layouts = new Map<string, SectionLayout>()
   signals.forEach((item, lane) => {
@@ -88,9 +91,9 @@ function drawLanes(
     ctx.beginPath()
     ctx.roundRect(bbox.left, top, bbox.width, h, LANE_RADIUS * dpr)
     ctx.clip()
-    if (sections) layouts.set(item.id, drawSections(u, sections, data.to, top, h, colors))
+    if (sections) layouts.set(item.id, drawSections(u, sections, data.to, top, h, colors, range))
     else {
-      for (let i = 0; i < x.length; ) {
+      for (let i = first; i < last; ) {
         const v = values[i]
         if (v == null) {
           i++
@@ -115,17 +118,17 @@ function drawLanes(
       }
     }
     ctx.restore()
-    if (sections) labelSegments(u, sections.start, sections.value, top, h, data.to, inks, sections.end)
-    else if (field?.kind === "enum") labelSegments(u, x, values, top, h, Math.min(x[x.length - 1]! + step, data.to), inks)
+    if (sections) labelSegments(u, sections.start, sections.value, top, h, data.to, inks, range, sections.end)
+    else if (field?.kind === "enum") labelSegments(u, x, values, top, h, Math.min(x[x.length - 1]! + step, data.to), inks, range)
   })
   ctx.restore()
   drawn.set(layouts)
 }
 
 /** The sections of a state lane, each in the colour of its code; returns their layout for the pointer. */
-function drawSections(u: uPlot, sections: Sections, to: number, top: number, h: number, colors: string[]): SectionLayout {
+function drawSections(u: uPlot, sections: Sections, to: number, top: number, h: number, colors: string[], range: [number, number]): SectionLayout {
   const { ctx } = u
-  const layout = layoutSections(sections, (t) => u.valToPos(t, "x", true), to, ctx.canvas.width, devicePixelRatio)
+  const layout = layoutSections(sections, (t) => u.valToPos(t, "x", true), to, ctx.canvas.width, devicePixelRatio, range)
   for (const { i, a, b } of layout.boxes) {
     ctx.fillStyle = colors[slotOf(sections.value[i]!)]!
     ctx.fillRect(a, top, b - a, h)
@@ -165,8 +168,9 @@ function fitText(ctx: CanvasRenderingContext2D, text: string, max: number): stri
 }
 
 /**
- * The code in every enum segment wide enough to hold it (more than 22 device pixels). Rows of equal value are one
- * segment up to the next row; a section (`ends` given) is one segment up to its own end.
+ * The code in every enum segment whose part on the area is wide enough to hold it (more than 22 device pixels), in the
+ * middle of that part. Rows of equal value are one segment up to the next row; a section (`ends` given) is one segment
+ * up to its own end.
  */
 function labelSegments(
   u: uPlot,
@@ -176,23 +180,17 @@ function labelSegments(
   h: number,
   end: number,
   inks: string[],
+  range: [number, number],
   ends?: number[],
 ): void {
-  const { ctx } = u
+  const { ctx, bbox } = u
   const dpr = devicePixelRatio
   ctx.textAlign = "center"
   ctx.textBaseline = "middle"
   ctx.font = font(12 * dpr)
-  let start = 0
-  for (let i = 1; i <= x.length; i++) {
-    if (!ends && i < x.length && values[i] === values[start]) continue
-    const a = u.valToPos(x[start]!, "x", true)
-    const b = u.valToPos(ends ? Math.min(ends[start]!, end) : i < x.length ? x[i]! : end, "x", true)
-    const v = values[start]
-    if (v != null && b - a > 22 * dpr) {
-      ctx.fillStyle = inks[slotOf(v)]!
-      ctx.fillText(String(v), (a + b) / 2, top + h / 2)
-    }
-    start = i
+  const area = { left: bbox.left, right: bbox.left + bbox.width, room: 22 * dpr }
+  for (const { v, at } of segmentLabels(x, values, end, (t) => u.valToPos(t, "x", true), area, ends, range)) {
+    ctx.fillStyle = inks[slotOf(v)]!
+    ctx.fillText(String(v), at, top + h / 2)
   }
 }

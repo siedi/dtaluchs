@@ -7,6 +7,7 @@ import pytest
 
 from dtaluchs.core.errors import NoImport, NotFound, Unavailable
 from dtaluchs.core.plantdir import NO_PLANT
+from dtaluchs.core.stock.meta import read_stock
 from dtaluchs.core.stock.names import META_DB
 from dtaluchs.core.stock.schema import MIGRATIONS
 from dtaluchs.core.store import migrations
@@ -52,6 +53,42 @@ def test_a_database_that_vanishes_between_check_and_open_is_no_import_either(
     monkeypatch.setattr(Path, "exists", exists)
     with pytest.raises(NoImport):
         connect(tmp_path, read_only=True)
+
+
+def columns(con: duckdb.DuckDBPyConnection) -> set[tuple[str, str, str]]:
+    sql = (
+        "SELECT table_name, column_name, data_type FROM duckdb_columns() WHERE table_name <> 'meta'"
+    )
+    return {(str(t), str(c), str(d)) for t, c, d in con.execute(sql).fetchall()}
+
+
+def test_the_stock_before_the_first_import_has_the_tables_of_a_new_database(tmp_path: Path) -> None:
+    with read_stock(tmp_path) as empty:
+        assert columns(empty) and empty.execute("SELECT count(*) FROM layouts").fetchone() == (0,)
+        before = columns(empty)
+    assert not (tmp_path / META_DB).exists()  # reading creates nothing
+    with connect(tmp_path) as con:
+        assert columns(con) == before
+
+
+def test_partitions_without_a_log_are_no_empty_stock(tmp_path: Path) -> None:
+    part = tmp_path / "raw" / "jahr=2026" / "monat=10" / "teil.parquet"
+    part.parent.mkdir(parents=True)
+    part.write_bytes(b"")
+    with pytest.raises(NoImport), read_stock(tmp_path):
+        pass
+
+
+def test_a_missing_plant_folder_is_no_empty_stock(tmp_path: Path) -> None:
+    with pytest.raises(NoImport), read_stock(tmp_path / "fehlt"):
+        pass
+
+
+def test_the_stock_still_refuses_an_older_schema(tmp_path: Path) -> None:
+    with connect(tmp_path) as con:
+        con.execute("UPDATE meta SET schema_version = 0")
+    with pytest.raises(Unavailable, match="alten Stand"), read_stock(tmp_path):
+        pass
 
 
 def test_read_only_refuses_an_older_schema(tmp_path: Path) -> None:

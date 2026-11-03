@@ -353,27 +353,7 @@ for (const [path, title, button] of [
   })
 }
 
-// 8. Without a stock `/api/meta` answers 503 (no `meta.duckdb`): with no run either, Zeitreihen and Kennzahlen show
-// the same empty state with the button to Import as the start page; the red error state is for the rest.
-for (const path of ["/series", "/stats"]) {
-  check(`ohne meta.duckdb (503 gespielt, kein Lauf): ${path} zeigt den Knopf auf /import statt des Fehlers`, async (browser) => {
-    const page = await browser.newPage({ viewport: { width: 1360, height: 1000 } })
-    await page.route("**/api/meta", (route) =>
-      route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ detail: "Es gibt noch keinen Import." }) }))
-    await page.route("**/api/import/status", whenOpen(async (route) => {
-      const real = await (await route.fetch()).json()
-      await route.fulfill({ json: { ...real, running: false, queued: false, last: null } })
-    }))
-    await page.goto(`${base}${path}`)
-    await page.getByRole("heading", { name: "Noch keine Daten importiert." }).waitFor({ timeout: 20000 })
-    expect("Knopf Erneut versuchen", await page.getByRole("button", { name: /Erneut/ }).count(), 0)
-    await page.getByRole("link", { name: "Zur Seite Import" }).click()
-    await page.waitForURL(`${base}/import`)
-    await page.close()
-  })
-}
-
-// 9. A 500 from `/api/meta` is not an empty stock, run or no run: the red error with "Erneut versuchen" stays.
+// 8. A 500 from `/api/meta` is not an empty stock, run or no run: the red error with "Erneut versuchen" stays.
 for (const path of ["/", "/series", "/stats"]) {
   check(`500 von /api/meta ohne Lauf: ${path} zeigt den Fehler mit Erneut versuchen, nicht den Leerzustand`, async (browser) => {
     const page = await browser.newPage({ viewport: { width: 1360, height: 1000 } })

@@ -220,6 +220,9 @@ export const de = {
     chart: "Diagramm",
     chartMenu: "Menü des Diagramms",
     signalArea: "Signalbereich",
+    chartN: "Diagramm {{n}}",
+    // The area of a chart or of the signal area, a stop of the keyboard.
+    plotArea: "{{name}}, Zeitraum verschieben mit Pfeiltasten, zoomen mit Plus und Minus",
     signalsMenu: "Menü des Signalbereichs",
     moveChart: "Diagramm verschieben",
     moveChartHint: "Ziehen, um das Diagramm zu verschieben",

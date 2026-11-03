@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { CATCH, layoutSections, sectionAt } from "./sections"
+import { CATCH, layoutSections, rowsIn, sectionAt, sectionsIn, segmentLabels } from "./sections"
 import type { Sections } from "./types"
 
 // One second is one device pixel: section i covers the pixels from start to end.
@@ -17,6 +17,15 @@ describe("layoutSections", () => {
     expect(l.boxes).toEqual([{ i: 0, a: 0, b: 10 }, { i: 1, a: 10, b: 30 }, { i: 2, a: 30, b: 40 }])
     expect([...l.owner.slice(8, 12)]).toEqual([0, 0, 1, 1])
     expect(l.owner[45]).toBe(-1)
+  })
+
+  it("lässt Abschnitte außerhalb der Fläche, links und rechts, keinen Pixel besitzen (die Seite lädt mit Rand)", () => {
+    // Pixel p shows time p - 20: the first section ends left of the canvas, the last starts right of it, the one between
+    // them stands at the pixels 25 to 35. A negative end of `fill` would count from the end of the array.
+    const l = layoutSections(S([[-60, -30, 7], [5, 15, 5], [90, 100, 3]]), (t) => t + 20, 100, 50, 1)
+    expect([...l.owner.slice(0, 25)].every((o) => o === -1)).toBe(true)
+    expect([...l.owner.slice(25, 35)].every((o) => o === 1)).toBe(true)
+    expect([...l.owner.slice(35)].every((o) => o === -1)).toBe(true)
   })
 
   it("rounds a box outwards to whole pixels, so neighbours meet without a seam", () => {
@@ -79,5 +88,58 @@ describe("sectionAt", () => {
     expect(sectionAt(l2, 8.5)).toBe(1)
     expect(sectionAt(l2, 12.5)).toBe(1)
     expect(sectionAt(l2, 7.5)).toBe(0)
+  })
+})
+
+describe("Abschnitte und Zeilen im Bereich der Skala", () => {
+  it("sectionsIn: nur die Abschnitte, die in [min, max] reichen", () => {
+    const s = S([[0, 10, 0], [10, 20, 1], [20, 30, 2], [30, 40, 3]])
+    expect(sectionsIn(s, 12, 25)).toEqual([1, 3])
+    expect(sectionsIn(s, 10, 20)).toEqual([1, 2])
+    expect(sectionsIn(s, 50, 60)).toEqual([4, 4])
+    expect(sectionsIn(s, -10, -5)).toEqual([0, 0])
+  })
+
+  it("rowsIn: eine Zeile reicht bis zur nächsten, die vor min zählt mit", () => {
+    const ts = [0, 10, 20, 30]
+    expect(rowsIn(ts, 12, 25)).toEqual([1, 3])
+    expect(rowsIn(ts, 10, 20)).toEqual([1, 2])
+    expect(rowsIn(ts, -10, 5)).toEqual([0, 1])
+  })
+
+  it("layoutSections legt nur die Abschnitte im Bereich aus, Indizes bleiben die der Antwort", () => {
+    const s = S([[-100, -60, 7], [-60, 5, 5], [5, 15, 2], [15, 40, 3], [60, 90, 4]])
+    const seen: number[] = []
+    const l = layoutSections(s, (t) => (seen.push(t), t), 100, 50, 1, [0, 50])
+    expect(l.boxes.map((b) => b.i)).toEqual([1, 2, 3])
+    expect(seen.every((t) => t >= -60)).toBe(true)
+    expect(Array.from(l.owner.slice(0, 6))).toEqual([1, 1, 1, 1, 1, 2])
+  })
+})
+
+describe("segmentLabels", () => {
+  // The area from pixel 10 to 110; one second is one pixel; labels need more than 22 px.
+  const area = { left: 10, right: 110, room: 22 }
+  it("setzt das Etikett eines Abschnitts, der über den Rand reicht, mittig auf den sichtbaren Teil", () => {
+    const s = S([[-100, 40, 5], [40, 120, 3]])
+    const labels = segmentLabels(s.start, s.value, 200, (t) => t, area, s.end)
+    expect(labels).toEqual([
+      { v: 5, at: 25 },
+      { v: 3, at: 75 },
+    ])
+  })
+
+  it("setzt kein Etikett außerhalb der Fläche und keins auf einen sichtbaren Rest unter der Breite", () => {
+    const s = S([[-100, -40, 7], [-40, 20, 5], [20, 100, 3], [100, 130, 1], [130, 200, 2]])
+    expect(segmentLabels(s.start, s.value, 200, (t) => t, area, s.end)).toEqual([{ v: 3, at: 60 }])
+  })
+
+  it("Zeilen gleichen Werts sind ein Abschnitt bis zur nächsten Zeile", () => {
+    const x = [-50, 0, 30, 60, 90]
+    const v = [4, 4, 4, 2, 2]
+    expect(segmentLabels(x, v, 150, (t) => t, area)).toEqual([
+      { v: 4, at: 35 },
+      { v: 2, at: 85 },
+    ])
   })
 })

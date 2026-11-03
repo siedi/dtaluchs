@@ -1,7 +1,7 @@
 # App for Home Assistant OS. version equals backend/pyproject.toml,
 # it is also the tag of the image the Dockerfile builds on.
 name: "DTA-Luchs"
-version: "0.5.8"
+version: "0.5.9"
 slug: "dtaluchs"
 description: "Auswertung der DTA-Dateien einer Wärmepumpe: Zeitreihen, Läufe, Kennzahlen"
 url: "https://github.com/siedi/dtaluchs"

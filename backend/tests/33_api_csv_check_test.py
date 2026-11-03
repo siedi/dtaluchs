@@ -131,11 +131,11 @@ async def test_the_csv_variants_wait_for_the_writer_then_503(
         ("/api/events", {"from": T0, "to": T0 + 3600}),
     ],
 )
-async def test_check_without_a_stock_is_503_at_once(
+async def test_check_without_a_stock_finds_nothing(
     api_client: httpx.AsyncClient, url: str, params: dict[str, str | int]
 ) -> None:
     response = await api_client.get(url, params={**params, "format": "csv", "check": "true"})
-    assert response.status_code == 503
+    assert response.status_code == 204
 
 
 @pytest.mark.usefixtures("filled")

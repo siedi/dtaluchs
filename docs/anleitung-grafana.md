@@ -126,7 +126,7 @@ Weitere Listen: `heat_reported_kwh`, `cop_reported`, `starts`, `defrosts`, `run_
 
 - **CSV nicht nehmen.** Die CSV-Ausgabe der API (`format=csv`) ist für Tabellenprogramme gedacht: Dezimalkomma und Zeit ohne Zone. Infinity liest Werte mit Komma als leer und verschiebt die Zeit um den Abstand der Zone zu UTC. Deshalb JSON nehmen.
 - **jq statt JSONata.** Beide Parser liefern dieselben Werte. Für dieselbe Umformung brauchte JSONata 0,6 bis 1,4 s, jq unter 0,2 s.
-- **Punkte und Felder:** `points` von 100 bis 4000, höchstens 36 Felder je Abfrage. Hat der Zeitraum mehr als doppelt so viele Einträge wie `points`, verdichtet dtaluchs auf rund `points` Intervalle.
+- **Punkte und Felder:** `points` von 100 bis 12 000, höchstens 36 Felder je Abfrage. Hat der Zeitraum mehr als doppelt so viele Einträge wie `points`, verdichtet dtaluchs auf rund `points` Intervalle.
 - **Zustände über lange Zeiträume:** Mit `.sections` zeigt ein Zustandspanel jeden Abschnitt, auch ein Abtauen von 2 Minuten in einem Jahr. Die Grenze ist das Doppelte von `points`: Mit `points=4000` (wie im Beispiel) passt `operating_state` über den ganzen Bestand, mit `points=1000` schon über ein Jahr nicht mehr. Darüber gilt je Intervall der häufigste Zustand, und kurze Zustände fallen weg.
 - **Minutenwerte** gibt es nur als CSV, sie gehen deshalb nicht in Grafana.
 - **Fehler** zeigt Grafana nur mit Statuscode, etwa „status code : 422“. Den Text liefert dieselbe URL im Browser.

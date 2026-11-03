@@ -1,8 +1,9 @@
-import type uPlot from "uplot"
+import uPlot from "uplot"
 import { beforeAll, describe, expect, it, vi } from "vitest"
 import { AXIS, RIGHT_AXIS } from "@/shared/chart/theme"
 import type { FieldInfo } from "@/shared/meta/types"
 import { PLOT_MIN, valuesChart, SIGNALS_TOP, SIGNALS_TOP_COMPACT, LANE, LANE_GAP, LANE_LABEL, SIDE_PAD, SIDE_HEAD, ENTRY, type ChartContext } from "./chart"
+import { createViewport } from "./gestures"
 import { createLaneLayouts } from "./lane-layouts"
 import { statesChart } from "./lanes"
 import type { Chart, SeriesResponse } from "./types"
@@ -23,7 +24,8 @@ const DATA: SeriesResponse = {
   series: FIELDS.map((f) => ({ field: f.id, value: [1, 2], min: null, max: null, texts: null, text: null, sections: null })),
   gaps: [],
 }
-const CTX: ChartContext = { width: 800, data: DATA, onSelect: () => {}, onCursor: () => {} }
+const VIEW = { from: 30, to: 90 }
+const CTX: ChartContext = { width: 800, data: DATA, viewport: createViewport(VIEW, { first_ts: 0, last_ts: 2_000_000_000 }, () => {}), onCursor: () => {} }
 const chart = (...ids: string[]): Chart => ({ items: ids.map((id, slot) => ({ id, slot })) })
 
 describe("valuesChart", () => {
@@ -51,6 +53,55 @@ describe("valuesChart", () => {
   it("lässt rechts nur einen schmalen Rand, wenn keine Seite eine rechte Achse hat", () => {
     const [opts] = valuesChart(CTX, chart("flow_temp"), FIELDS, false)
     expect(opts.axes![2]!.size).toBeLessThan(RIGHT_AXIS)
+  })
+})
+
+describe("Zeitachse und Aufziehen", () => {
+  it("zeigt den sichtbaren Zeitraum, nicht den der Daten", () => {
+    const [opts] = valuesChart(CTX, chart("flow_temp"), FIELDS, false)
+    const range = opts.scales!.x!.range as () => [number, number]
+    expect([DATA.from, DATA.to]).toEqual([0, 120])
+    expect(range()).toEqual([30, 90])
+  })
+
+  it("folgt dem Zeitraum, wenn er sich ändert, ohne neu zu bauen", () => {
+    const viewport = createViewport(VIEW, { first_ts: 0, last_ts: 2_000_000_000 }, () => {})
+    const [opts] = valuesChart({ ...CTX, viewport }, chart("flow_temp"), FIELDS, false)
+    viewport.reset({ from: 10, to: 20 })
+    expect((opts.scales!.x!.range as () => [number, number])()).toEqual([10, 20])
+  })
+
+  it("versteckt den Zeiger, solange eine Geste ihn verbirgt", () => {
+    const viewport = createViewport(VIEW, { first_ts: 0, last_ts: 2_000_000_000 }, () => {})
+    const [opts] = valuesChart({ ...CTX, viewport }, chart("flow_temp"), FIELDS, false)
+    const move = opts.cursor!.move!
+    const u = {} as uPlot
+    expect(move(u, 50, 20)).toEqual([50, 20])
+    viewport.key({ key: "ArrowLeft", shiftKey: false })
+    expect(move(u, 50, 20)).toEqual([-10, -10])
+  })
+
+  it("hat kein Aufziehen: kein Ziehen in x, kein setSelect", () => {
+    for (const [opts] of [valuesChart(CTX, chart("flow_temp"), FIELDS, false), statesChart(CTX, [], FIELDS, false, false, createLaneLayouts(), (_f, id) => id)]) {
+      expect(opts.cursor!.drag).toMatchObject({ x: false, y: false })
+      expect(opts.hooks!.setSelect).toBeUndefined()
+    }
+  })
+
+  it("lässt die y-Skala von uPlot über den sichtbaren Bereich rechnen: kein fester Bereich aus allen Daten", () => {
+    const [opts] = valuesChart(CTX, chart("flow_temp", "compressor_speed", "runtime"), FIELDS, true)
+    for (const key of ["y", "y2"]) {
+      const scale = opts.scales![key]!
+      const range = scale.range as uPlot.Range.Function
+      // The range of what is visible, padded as uPlot pads it.
+      expect(range({} as uPlot, 3, 47, key)).toEqual(uPlot.rangeNum(3, 47, 0.1, true))
+      expect(scale.auto).not.toBe(false)
+    }
+  })
+
+  it("hält die linke Achse auch ohne Werte im Zeitraum: die Flächen aller Diagramme beginnen an derselben Stelle", () => {
+    const [opts] = valuesChart(CTX, chart("flow_temp", "compressor_speed", "runtime"), FIELDS, true)
+    for (const key of ["y", "y2"]) expect((opts.scales![key]!.range as uPlot.Range.Function)({} as uPlot, null as unknown as number, null as unknown as number, key)).toEqual([0, 1])
   })
 })
 

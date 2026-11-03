@@ -10,7 +10,10 @@ export const MAX_CHARTS = 6
 export const MAX_LANES = 48
 export const SLOT_COUNT = 8
 export const MIN_POINTS = 100
-export const MAX_POINTS = 4000
+// Points of one request: the visible range plus a margin on each side, so up to three times as many
+export const MAX_POINTS = 12000
+// Points of the visible range alone: one per pixel up to this
+export const MAX_VISIBLE_POINTS = 4000
 
 export const DEFAULT_FIELDS = [
   ["flow_temp", "return_temp", "outdoor_temp", "dhw_temp"],
@@ -42,7 +45,7 @@ function safeDecode(text: string): string {
 
 /** One point per pixel of the plot, rounded to 100 so small resizes do not refetch. */
 export function pointsFor(plotWidth: number): number {
-  return Math.min(MAX_POINTS, Math.max(MIN_POINTS, Math.round(plotWidth / 100) * 100))
+  return Math.min(MAX_VISIBLE_POINTS, Math.max(MIN_POINTS, Math.round(plotWidth / 100) * 100))
 }
 
 // ---- Layout: charts with up to two units and one signal area ----
