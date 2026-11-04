@@ -2,13 +2,14 @@
 // up to two units (the right one dashed), a min/max band when condensed, gaps shaded, cursor coupled. Every plot has the
 // same left and right margin, so the time axes line up. The lanes of the signal area draw in `lanes.ts`.
 import uPlot from "uplot"
-import { AXIS, FONT, LEFT_AXIS, RIGHT_AXIS, font, slotColor, token } from "@/shared/chart/theme"
+import { AXIS, FONT, LEFT_AXIS, RIGHT_AXIS, font, slotColor, token, withAlpha } from "@/shared/chart/theme"
 import type { FieldInfo } from "@/shared/meta/types"
 import { formatNumber, formatTick, isDuration } from "@/shared/time/format"
 import { zone } from "@/shared/time/zone"
-import { rowAt } from "./cursor"
+import { lowerBound } from "./compare"
 import { durationAxis, type DurationAxis } from "./duration-axis"
 import type { Viewport } from "./gestures"
+import { rowAt, stepOf } from "./rows"
 import type { Chart, Curve, SeriesResponse } from "./types"
 import { unitName, unitsOf } from "./view"
 
@@ -20,6 +21,8 @@ export const LANE_GAP = 4 // a lane stands in a row of 24 px, the same height as
 export const LANE_RADIUS = 4 // lane and its segments
 export const LANE_LABEL = 16 // room for the name above a lane on narrow pages
 export const LABEL_TEXT = 12 + 2 // that name: 12 px text, drawn 2 px above its lane
+export const CMP_LANE = 10 // the lane of the comparison below a lane, half as high
+export const CMP_LANE_GAP = 2 // between a lane and the lane of its comparison
 export const SIDE_PAD = 8 // padding above and below the side column
 export const SIDE_HEAD = 24 // head row of the side column: 24 px buttons
 export const ENTRY = 24 // one entry of the side column
@@ -30,12 +33,17 @@ export const SIGNALS_TOP = SIDE_PAD + SIDE_HEAD + GROUP_GAP
 export const SIGNALS_TOP_COMPACT = 8 // narrow pages: the side column stands above the plot
 export const RIGHT_PAD = 12 // right margin when no chart of the page has a right axis
 const VALUES_TOP = 20 // room for the unit above each axis
-export const RAW_STEP = 60 // record interval of the controller, 40 to 60 s
 const DASH = [6, 4] // curves of the right axis
+const NULL_EXPAND = 2 // mode of uPlot.join: a row without a value spreads over the added rows next to it
+export const CMP_ALPHA = 0.55 // a curve of the comparison: the colour of its field at 55 %, half that while an older answer stands in
 
 export interface ChartContext {
   width: number
   data: SeriesResponse
+  /** The answer of the comparison, its times already moved onto the axis of `data`; null without one. */
+  cmp: SeriesResponse | null
+  /** The comparison shown is an older answer that does not cover what is asked: its curves at half their opacity. */
+  cmpDim: boolean
   /** The visible time range, which the x scale of every plot shows; the data may reach further (loaded with a margin). */
   viewport: Viewport
   /**
@@ -53,9 +61,9 @@ export function sideHeight(counts: number[], labelled: boolean): number {
   return SIDE_PAD + SIDE_HEAD + groups + SIDE_PAD
 }
 
-/** Height of one lane with its gap, and the name above it on narrow pages. */
-export function laneHeight(compact: boolean): number {
-  return LANE + LANE_GAP + (compact ? LANE_LABEL : 0)
+/** Height of one lane with its gap, the lane of the comparison below it when one is on, and the name above it on narrow pages. */
+export function laneHeight(compact: boolean, compare = false): number {
+  return LANE + LANE_GAP + (compare ? CMP_LANE_GAP + CMP_LANE : 0) + (compact ? LANE_LABEL : 0)
 }
 
 /** Options every chart of the page shares: size, cursor, time axis, the left axis and room on the right. */
@@ -75,7 +83,7 @@ export function baseOptions(ctx: ChartContext, height: number, top: number, righ
       // A gesture hides line, points, time pill and labels: uPlot then reports the cursor as gone.
       move: (_u, left, top) => (ctx.viewport.cursorHidden() ? [-10, -10] : [left, top]),
       // The points on the curves mark the row the side column shows, not the nearest one.
-      dataIdx: (u, _series, _nearest, time) => rowAt(u.data[0], time, ctx.data.bucket_seconds ?? RAW_STEP),
+      dataIdx: (u, _series, _nearest, time) => rowAt(u.data[0], time, stepOf(ctx.data)),
     },
     tzDate: (ts) => uPlot.tzDate(new Date(ts * 1000), zone()),
     scales: { x: { time: true, range: () => [ctx.viewport.get().from, ctx.viewport.get().to] } },
@@ -95,7 +103,7 @@ export function baseOptions(ctx: ChartContext, height: number, top: number, righ
           const left = u.cursor.left
           if (left == null || left < 0) return ctx.onCursor(null, null, null)
           const time = u.posToVal(left, "x")
-          ctx.onCursor(rowAt(ctx.data.ts, time, ctx.data.bucket_seconds ?? RAW_STEP), u.over.offsetLeft + left, time)
+          ctx.onCursor(rowAt(ctx.data.ts, time, stepOf(ctx.data)), u.over.offsetLeft + left, time)
         },
       ],
     },
@@ -179,23 +187,41 @@ export function valuesChart(
   const height = compact ? area : Math.max(area, sideHeight(counts, units.length > 1))
   const opts = baseOptions(ctx, height, VALUES_TOP, anyRight ? RIGHT_AXIS : RIGHT_PAD)
   opts.scales!.y = { range: keepAxis }
-  const columns: (number | null)[][] = []
   const series: uPlot.Series[] = [{}]
   const bands: uPlot.Band[] = []
-  for (const item of chart.items) {
+  // Where each series takes its values: a column of the main answer or of the comparison.
+  const main: (number | null)[][] = []
+  const other: (number | null)[][] = []
+  const source: ("main" | "cmp")[] = []
+  const add = (s: uPlot.Series, from: "main" | "cmp", column: (number | null)[]) => {
+    series.push(s)
+    source.push(from)
+    if (from === "main") main.push(column)
+    else other.push(column)
+  }
+  const placed = chart.items.flatMap((item) => {
     const curve = curveOf(ctx.data, item.id)
-    if (!curve) continue
+    if (!curve) return []
     const field = byId.get(item.id)
     const right = units.length > 1 && field !== undefined && unitName(field) === units[1]
-    const scale = right ? "y2" : "y"
+    return [{ item, curve, scale: right ? "y2" : "y", dash: right ? DASH : undefined }]
+  })
+  // The comparison of each curve in the colour of its field, thinner and fainter, without band, below every main curve.
+  if (ctx.cmp) {
+    for (const { item, scale, dash } of placed) {
+      const twin = curveOf(ctx.cmp, item.id)
+      if (!twin) continue
+      const stroke = withAlpha(slotColor(item.slot), ctx.cmpDim ? CMP_ALPHA / 2 : CMP_ALPHA)
+      add({ scale, stroke, width: 1, dash, spanGaps: false, points: { show: false } }, "cmp", twin.value)
+    }
+  }
+  for (const { item, curve, scale, dash } of placed) {
     const color = slotColor(item.slot)
-    columns.push(curve.value)
-    series.push({ scale, stroke: color, width: 2, dash: right ? DASH : undefined, spanGaps: false, points: { show: false } })
+    add({ scale, stroke: color, width: 2, dash, spanGaps: false, points: { show: false } }, "main", curve.value)
     if (curve.min && curve.max) {
-      const index = columns.length + 1 // uPlot counts x as series 0
-      columns.push(curve.min, curve.max)
-      series.push({ scale, stroke: "transparent", width: 0, points: { show: false } })
-      series.push({ scale, stroke: "transparent", width: 0, points: { show: false } })
+      const index = series.length // uPlot counts x as series 0
+      add({ scale, stroke: "transparent", width: 0, points: { show: false } }, "main", curve.min)
+      add({ scale, stroke: "transparent", width: 0, points: { show: false } }, "main", curve.max)
       bands.push({ series: [index + 1, index], fill: `${color}1a` })
     }
   }
@@ -217,7 +243,48 @@ export function valuesChart(
       ctx.onAxes?.(shown, units)
     },
   ]
-  return [opts, [ctx.data.ts, ...columns] as uPlot.AlignedData]
+  if (!ctx.cmp || other.length === 0) return [opts, [ctx.data.ts, ...main] as uPlot.AlignedData]
+  return [opts, joinCompare(ctx, opts, source, main, other)]
+}
+
+/**
+ * The columns of main answer and comparison over one time axis of both, once per answer. A line runs on over the times of
+ * the other answer (they hold undefined) and breaks only at its own gaps: uPlot clips a gap from the x before its row
+ * without a value to the x after it, so the rows of the other answer next to that row become gaps too, up to the next value
+ * of the same answer (`NULL_EXPAND`). The pointer marks in every curve the row of its own answer whose interval holds the
+ * time, each with the step of that answer.
+ */
+function joinCompare(
+  ctx: ChartContext,
+  opts: uPlot.Options,
+  source: ("main" | "cmp")[],
+  main: (number | null)[][],
+  other: (number | null)[][],
+): uPlot.AlignedData {
+  const cmp = ctx.cmp!
+  const expand = (n: number) => Array<number>(n + 1).fill(NULL_EXPAND)
+  const joined = uPlot.join([[ctx.data.ts, ...main], [cmp.ts, ...other]] as uPlot.AlignedData[], [expand(main.length), expand(other.length)])
+  const x = joined[0] as number[]
+  const counts = { main: 0, cmp: 0 }
+  const columns = source.map((from) => joined[from === "main" ? 1 + counts.main++ : 1 + main.length + counts.cmp++]!)
+  // Every series asks for the same time in turn: both rows are worked out once per time.
+  let at = Number.NaN
+  let rows: Record<"main" | "cmp", number | null> = { main: null, cmp: null }
+  const place = (ts: ArrayLike<number>, time: number, step: number) => {
+    const row = rowAt(ts, time, step)
+    return row === null ? null : lowerBound(x, ts[row]!)
+  }
+  opts.cursor!.dataIdx = (_u, index, _nearest, time) => {
+    if (time !== at) {
+      at = time
+      rows = {
+        main: place(ctx.data.ts, time, stepOf(ctx.data)),
+        cmp: place(cmp.ts, time, stepOf(cmp)),
+      }
+    }
+    return rows[source[index - 1] ?? "main"]
+  }
+  return [x, ...columns] as uPlot.AlignedData
 }
 
 /** The unit over each axis (for seconds the unit of the ticks); a long one moves inwards instead of leaving the canvas. */

@@ -175,6 +175,20 @@ check("Signalbereich bei 1280 px: die Zeilen der Seitenspalte stehen auf Höhe i
   await finish(o)
 })
 
+check("Signalbereich mit Vergleich bei 1280 px: Zeile 36 px, Spur 20 px auf Höhe des Namens, Vergleichsspur 10 px 2 px darunter", async (browser) => {
+  const o = await open(browser, `${series([CELSIUS], [...BITS, ...ENUM])}&vs=${365 * 86400}`)
+  const offsets = await laneOffsets(o.page, { compare: true })
+  log(JSON.stringify(offsets))
+  expect("vier Zeilen", offsets.length, 4)
+  ok("Spur 20 px hoch, Abstand 36 px (Pixel)", offsets.every((r) => r.laneHeight === 20 && r.pitch === 36), JSON.stringify(offsets))
+  ok("Zeilen 36 px hoch", offsets.every((r) => r.height === 36), JSON.stringify(offsets))
+  ok("Mitte der ersten 24 px der Zeile = Mitte der Spur (höchstens 0,5 px)", offsets.every((r) => Math.abs(r.row - r.lane) <= 0.5), JSON.stringify(offsets))
+  ok("Vergleichsspur 10 px, 2 px unter der Spur, 24 px unter dem Kopf der Zeile", offsets.every((r) => r.cmp.height === 10 && r.cmp.gap === 2 && r.cmp.top === 24), JSON.stringify(offsets))
+  const m = await measure(o.page, 'section[aria-label="Signale"]')
+  expect("Höhe: vier Zeilen zu 36 px, 36 px oben, Achse", m.canvas.height, 4 * 36 + 36 + AXIS)
+  await finish(o)
+})
+
 check("Spuren aus den Pixeln bei Skalierung 2, hell und dunkel: dieselbe Lage wie bei Skalierung 1", async (browser) => {
   for (const dark of [false, true]) {
     const o = await open(browser, series([CELSIUS], [...BITS, ...ENUM]), { dark, scale: 2 })

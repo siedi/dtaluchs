@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { rowAt } from "./cursor"
+import { rowAt } from "./rows"
 
 describe("rowAt", () => {
   const ts = [100, 160, 220, 280]

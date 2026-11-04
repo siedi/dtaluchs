@@ -22,6 +22,19 @@ app.theme.dark
 app.theme.label
 app.theme.light
 app.theme.system
+compare.button
+compare.chartOnly
+compare.dialog
+compare.failed
+compare.footer
+compare.noData
+compare.off
+compare.offLabel
+compare.quick.month
+compare.quick.week
+compare.quick.year
+compare.retry
+compare.title
 csv.button
 csv.current
 csv.gaps
@@ -390,6 +403,7 @@ series.chart
 series.chartLabel
 series.chartMenu
 series.chartN
+series.compareValue
 series.condensed
 series.details.abbr
 series.details.about
@@ -427,6 +441,7 @@ series.lanesFull
 series.leftUnit
 series.loading
 series.max
+series.meanTitle
 series.min
 series.missing
 series.moveChart

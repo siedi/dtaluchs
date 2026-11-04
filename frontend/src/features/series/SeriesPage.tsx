@@ -21,15 +21,17 @@ import { keepShow, seriesShows, showOf, withShow, withWhen } from "@/shared/show
 import { RangeBar } from "@/shared/time/RangeBar"
 import { formatDuration, formatTime } from "@/shared/time/format"
 import { DAY, presetRange, PRESETS, rangeFromParams } from "@/shared/time/range"
+import { ComparePopover } from "./ComparePopover"
 import { DragLayer, NewZone } from "./DragLayer"
 import { FieldPicker } from "./FieldPicker"
 import { SeriesTable } from "./SeriesTable"
 import { SignalArea } from "./SignalArea"
 import { ValueChart, type RowProps } from "./ValueChart"
 import { seriesCsvUrl, type SeriesParams } from "./api"
+import { parseVs, withVs } from "./compare"
 import { clearPointer } from "./cursor"
 import { createViewport, type CommitMode } from "./gestures"
-import { seriesParams, showsPartial, useSeries } from "./queries"
+import { seriesParams, showsPartial, useCompare, useSeries } from "./queries"
 import { FieldStats } from "./stats/FieldStats"
 import { fieldStatsCsvUrl } from "./stats/api"
 import { useFieldScope } from "./stats/queries"
@@ -71,6 +73,8 @@ function SeriesView({ meta, stock }: { meta: Meta; stock: NonNullable<Meta["rang
 
   const range = useMemo<TimeRange>(() => rangeFromParams(params, stock, 2 * DAY), [params, stock])
   const { layout, missing } = useMemo(() => decodeLayout(params, fields), [params, fields])
+  // The offset of the comparison; it is no part of the view and stays in the URL on every change the page writes.
+  const vs = parseVs(params.get("vs"), range)
   const { vid, resolving, current, viewSearch } = useViewTarget(params, setParams, stock, fields)
   const changed = current !== null && isChanged(current, layout, range, stock, fields)
 
@@ -135,6 +139,8 @@ function SeriesView({ meta, stock }: { meta: Meta; stock: NonNullable<Meta["rang
   const asked = show === "table" ? { fields: ids, from: range.from, to: range.to, points: pointsFor(plotWidth) } : seriesParams(range, stock, plotWidth, ids)
   const series = useSeries(width > 0 && !resolving && show !== "stats" ? asked : null)
   const data = series.data
+  // The comparison is drawn in the charts only, next to the request of the main range.
+  const cmp = useCompare(width > 0 && !resolving && show === "chart" ? asked : null, vs, stock, range)
   // "Statistik" is offered with the statistic; `when` counts only if the range has the bit (the scope tells, as in the page).
   const scope = useFieldScope(range, show === "stats")
   const statsWhen = effectiveWhen(when, scope.data !== undefined && !scope.isPlaceholderData ? scope.data : null)
@@ -160,7 +166,7 @@ function SeriesView({ meta, stock }: { meta: Meta; stock: NonNullable<Meta["rang
   } else {
     body = (
       <SeriesBody
-        row={{ layout, fields, width: plotWidth, anyRight, compact, actions, viewport }}
+        row={{ layout, fields, width: plotWidth, anyRight, compact, actions, viewport, cmp, range }}
         series={series}
         asked={asked}
         range={range}
@@ -181,6 +187,17 @@ function SeriesView({ meta, stock }: { meta: Meta; stock: NonNullable<Meta["rang
         onRange={(r) => update({ range: r })}
         canBack={canBack}
         onBack={() => void navigate(-1)}
+        after={
+          <ComparePopover
+            range={range}
+            stock={stock}
+            vs={vs}
+            state={cmp?.state ?? "off"}
+            // One history entry for each switch on, change and switch off; choosing what is chosen already writes none.
+            onVs={(next) => next !== vs && setParams(withVs(params, next))}
+            onRetry={() => cmp?.retry()}
+          />
+        }
         lead={<ShowSwitch show={show} allowed={allowed} onChange={(next) => next !== show && setParams(withShow(params, next))} />}
       >
         {show !== "stats" && data && data.ts.length > 0 && (
@@ -216,6 +233,12 @@ function SeriesView({ meta, stock }: { meta: Meta; stock: NonNullable<Meta["rang
           <p className="text-muted-foreground mt-2 flex items-center gap-2 rounded-lg border px-3 py-2 text-base">
             <InfoIcon className="size-4 shrink-0" />
             {t("series.missing", { fields: gone.join(", ") })}
+          </p>
+        )}
+        {vs !== null && show !== "chart" && (
+          <p className="text-muted-foreground mt-2 flex items-center gap-2 rounded-lg border px-3 py-2 text-base">
+            <InfoIcon className="size-4 shrink-0" />
+            {t("compare.chartOnly")}
           </p>
         )}
         <DragLayer layout={layout} fields={fields} actions={actions}>

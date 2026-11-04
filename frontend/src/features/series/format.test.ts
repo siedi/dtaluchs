@@ -58,6 +58,15 @@ describe("duration", () => {
     expect(valueColumn(["°C", "Hz"])).toBe("4.4em")
     expect(valueColumn([])).toBe("4.4em")
   })
+
+  it("takes two values and a gap with a comparison, wider than a column of one value", () => {
+    // two values of 4.4em or 6.2em and a gap of 0.5em
+    expect(valueColumn(["°C"], true)).toBe("9.3em")
+    expect(valueColumn(["°C", "s"], true)).toBe("12.9em")
+    for (const units of [["°C"], ["s"]]) {
+      expect(parseFloat(valueColumn(units, true))).toBeGreaterThanOrEqual(2 * parseFloat(valueColumn(units)))
+    }
+  })
 })
 
 describe("states", () => {

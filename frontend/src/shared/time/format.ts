@@ -58,6 +58,18 @@ export function formatShort(ts: number): string {
   return `${pad(p.day)}.${pad(p.month)}. ${pad(p.hour)}:${pad(p.minute)}`
 }
 
+/** `11.10.2026`, the date of a time; `short` writes the year with two digits: `11.10.26`. */
+export function formatDate(ts: number, short = false): string {
+  const p = parts(ts)
+  return `${pad(p.day)}.${pad(p.month)}.${short ? pad(p.year % 100) : p.year}`
+}
+
+/** `00:06`, the clock of a time. */
+export function formatClock(ts: number): string {
+  const p = parts(ts)
+  return `${pad(p.hour)}:${pad(p.minute)}`
+}
+
 /** `11.10.2026 00:06`, the form of the range fields. */
 export function formatInput(ts: number): string {
   const p = parts(ts)

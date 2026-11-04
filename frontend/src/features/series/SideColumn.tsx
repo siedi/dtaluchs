@@ -18,6 +18,7 @@ import {
 import type { FieldInfo } from "@/shared/meta/types"
 import { DropLine, useDrag, type Handle } from "./DragLayer"
 import { FieldCard, FieldInfoButton } from "./FieldDetails"
+import { ENTRY } from "./chart"
 
 export type MenuEntry =
   | { label: string; hint?: string; disabled?: boolean; danger?: boolean; onSelect: () => void }
@@ -175,14 +176,15 @@ export function Entry({ label, field, swatch, value, mark, menu, onRemove, style
       ref={drag.node}
       {...capture(drag.handle.listeners)}
       className={cn(
-        "group hover:bg-muted relative grid h-6 cursor-grab items-center gap-2 rounded-md pl-1 [--row-bg:var(--background)] hover:[--row-bg:var(--muted)]",
+        "group hover:bg-muted relative grid h-6 cursor-grab content-start items-center gap-2 rounded-md pl-1 [--row-bg:var(--background)] hover:[--row-bg:var(--muted)]",
         // No column for the value; with a mouse none for the × either, it lies over the name on hover.
         swatch
           ? button ? "grid-cols-[16px_minmax(0,1fr)_20px_24px]" : "grid-cols-[16px_minmax(0,1fr)_24px] [@media(hover:hover)]:grid-cols-[16px_minmax(0,1fr)]"
           : button ? "grid-cols-[minmax(0,1fr)_20px_24px] pl-2" : "grid-cols-[minmax(0,1fr)_24px] pl-2 [@media(hover:hover)]:grid-cols-[minmax(0,1fr)]",
         drag.dragging && "opacity-40",
       )}
-      style={{ ...style, "--valw": valueWidth ?? "4.4em" } as CSSProperties}
+      // One row of 24 px at the top, also in a higher entry (a lane with the lane of the comparison below it).
+      style={{ gridTemplateRows: `${ENTRY}px`, ...style, "--valw": valueWidth ?? "4.4em" } as CSSProperties}
     >
       {line && (
         <span className="pointer-events-none absolute inset-y-0 left-0 z-[6]" style={{ width: line.width }}>
@@ -206,16 +208,17 @@ export function Entry({ label, field, swatch, value, mark, menu, onRemove, style
       {button && field && <FieldInfoButton field={field} />}
       {/* The value lies over the end of the name, at the place of a column `--valw` wide before the × (without a mouse
           before "i" and ×), on the background of the row with 8 px of fade; empty, without a pointer in a chart, it
-          takes no room (#55). A longer value grows to the left with its background. Taps go through to the name. */}
+          takes no room (#55). A longer value grows to the left with its background. Taps go through to the name.
+          A higher row (a lane with the lane of the comparison below it) keeps name, value and × in its first 24 px. */}
       <span
         className={cn(
-          "pointer-events-none absolute inset-y-0 flex min-w-[calc(var(--valw)+8px)] items-center justify-end pl-2 text-base font-semibold whitespace-nowrap tabular-nums [background:linear-gradient(to_right,transparent,var(--row-bg)_8px)] empty:hidden",
+          "pointer-events-none absolute top-0 flex h-6 min-w-[calc(var(--valw)+8px)] items-center justify-end gap-2 pl-2 text-base font-semibold whitespace-nowrap tabular-nums [background:linear-gradient(to_right,transparent,var(--row-bg)_8px)] empty:hidden",
           button ? "right-15" : "right-8 [@media(hover:hover)]:right-0 [@media(hover:hover)]:min-w-[calc(var(--valw)+40px)] [@media(hover:hover)]:rounded-r-md [@media(hover:hover)]:pr-8",
         )}
       >
         {value}
       </span>
-      <span className="invisible flex items-center group-focus-within:visible group-hover:visible [@media(hover:hover)]:absolute [@media(hover:hover)]:inset-y-0 [@media(hover:hover)]:right-0 [@media(hover:hover)]:rounded-r-md [@media(hover:hover)]:pl-2 [@media(hover:hover)]:[background:linear-gradient(to_right,transparent,var(--row-bg)_8px)] [@media(hover:none)]:visible">
+      <span className="invisible flex items-center group-focus-within:visible group-hover:visible [@media(hover:hover)]:absolute [@media(hover:hover)]:top-0 [@media(hover:hover)]:h-6 [@media(hover:hover)]:right-0 [@media(hover:hover)]:rounded-r-md [@media(hover:hover)]:pl-2 [@media(hover:hover)]:[background:linear-gradient(to_right,transparent,var(--row-bg)_8px)] [@media(hover:none)]:visible">
         <Button
           type="button"
           variant="ghost"

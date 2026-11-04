@@ -16,13 +16,15 @@ import { FieldPicker } from "./FieldPicker"
 import { Entry, SideHead, type MenuEntry } from "./SideColumn"
 import { TimePill } from "./TimePill"
 import { valuesChart, type ChartContext } from "./chart"
-import { setPointer, useCursorRow } from "./cursor"
+import { fieldMean, compareRow } from "./compare"
+import { setPointer, useCursorRow, useCursorTime, usePointing } from "./cursor"
 import type { DragData, DropData } from "./drag"
 import { type DrawnAxes, shownUnits } from "./duration-axis"
 import { useFieldLabel } from "./field-label"
 import { formatValue, valueColumn } from "./format"
 import type { Viewport } from "./gestures"
-import type { Chart, Layout, PickTarget, SeriesActions, SeriesResponse } from "./types"
+import type { CompareSeries } from "./queries"
+import type { Chart, Layout, PickTarget, SeriesActions, SeriesResponse, TimeRange } from "./types"
 import { fit, unitName, unitsOf } from "./view"
 
 /** What every chart row of the page shares. */
@@ -38,6 +40,10 @@ export interface RowProps {
   actions: SeriesActions
   /** The visible time range of the page. */
   viewport: Viewport
+  /** The comparison range, null without `vs`. */
+  cmp: CompareSeries | null
+  /** The visible range of the page, the one the means of the side column cover. */
+  range: TimeRange
 }
 
 interface ChartRowProps {
@@ -117,18 +123,82 @@ export function AddField({ target, layout, fields, actions }: { target: PickTarg
 /**
  * Value of a field at the row whose interval holds the time under the pointer; empty without a pointer.
  * A state shows its code only: the text stands in the label at the pointer (`StateLabel`), the column keeps its width.
+ * With `mean` (a comparison is on) the column shows the mean over that range while no pointer is on a chart.
  */
-export function CursorValue({ id, kind, unit, data }: { id: string; kind: FieldInfo["kind"]; unit?: string | null; data: SeriesResponse }) {
+export function CursorValue({ id, kind, unit, data, mean }: { id: string; kind: FieldInfo["kind"]; unit?: string | null; data: SeriesResponse; mean?: TimeRange }) {
   const { t } = useTranslation()
   const row = useCursorRow()
+  const pointing = usePointing()
+  // The mean is worked out once per answer, field and range, not on every move of the pointer.
+  const meanShown = useMemo(() => (mean ? meanText(data, id, kind, unit, mean, t) : null), [data, id, kind, unit, mean, t])
+  if (mean && !pointing) return <MeanLead show={kind !== "enum"} text={meanShown} />
   if (row == null) return null
   const value = data.series.find((c) => c.field === id)?.value[row]
   return formatValue(value, kind, data.resolution === "bucket", { on: t("series.on"), off: t("series.off") }, null, unit)
 }
 
+type Translate = ReturnType<typeof useTranslation>["t"]
+
+/** The mean of a field over a range as text: a bit as a share, a field in seconds as a duration; none for a state. */
+function meanText(data: SeriesResponse | null, id: string, kind: FieldInfo["kind"], unit: string | null | undefined, range: TimeRange, t: Translate): string | null {
+  if (kind === "enum") return null
+  const value = data ? fieldMean(data, id, range) : null
+  return formatValue(value, kind, true, { on: t("series.on"), off: t("series.off") }, null, unit)
+}
+
+/** "Ø" before the mean of the main range, so it is not read as a value at the pointer. */
+function MeanLead({ show, text }: { show: boolean; text: string | null }) {
+  const { t } = useTranslation()
+  if (!show || text === null) return null
+  return (
+    <>
+      <span className="text-text-3 -mr-1 font-normal" title={t("series.meanTitle")}>
+        Ø
+      </span>
+      {text}
+    </>
+  )
+}
+
+/**
+ * The value of the comparison next to that of the main range: at the pointer the row of the comparison whose interval holds
+ * the time, with its own step; without a pointer its mean over the visible range, none without `range`. Weaker than the main value.
+ */
+export function CompareValue({ id, kind, unit, cmp, range }: { id: string; kind: FieldInfo["kind"]; unit?: string | null; cmp: CompareSeries; range?: TimeRange }) {
+  const { t } = useTranslation()
+  const pointing = usePointing()
+  const time = useCursorTime()
+  const { data } = cmp
+  // The mean is worked out once per answer and range, not on every move of the pointer.
+  const mean = useMemo(() => (kind === "enum" || !range ? null : meanText(data, id, kind, unit, range, t)), [data, id, kind, unit, range, t])
+  let text: string | null
+  if (pointing) {
+    if (time == null) return null
+    const row = data ? compareRow(data, time) : null
+    const value = data && row !== null ? data.series.find((c) => c.field === id)?.value[row] : null
+    text = formatValue(value, kind, data?.resolution === "bucket", { on: t("series.on"), off: t("series.off") }, null, unit)
+  } else {
+    text = mean
+  }
+  if (text === null) return null
+  return <Weak text={text} />
+}
+
+/** A value of the comparison in the weaker ink, with its title; the one place that gives it its look. */
+export function Weak({ text }: { text: string }) {
+  const { t } = useTranslation()
+  return (
+    <span className="text-text-3 font-normal" title={t("series.compareValue")}>
+      {text}
+    </span>
+  )
+}
+
 interface PlotProps {
   build: (ctx: ChartContext) => [uPlot.Options, uPlot.AlignedData]
   data: SeriesResponse
+  /** The answer of the comparison on the axis of `data`, and whether it is an older one at half opacity. */
+  cmp?: { data: SeriesResponse | null; dim: boolean; vs: number } | null
   width: number
   viewport: Viewport
   /** Name of the area for the keyboard, e.g. "Diagramm 1": the area is a stop of Tab and moves the range with keys. */
@@ -141,10 +211,12 @@ interface PlotProps {
 }
 
 /**
- * The uPlot canvas with the time pill; it is built again when its options, data or theme change. A new width resizes the
+ * The uPlot canvas with the time pill; it is built again when its options, data, comparison or theme change. A new width resizes the
  * plot it has: the ResizeObserver reports every frame while the window is dragged, new data comes only every 100 px.
  */
-export function Plot({ build, data, width, viewport, name, onAxes, overlay, children }: PlotProps) {
+export function Plot({ build, data, cmp, width, viewport, name, onAxes, overlay, children }: PlotProps) {
+  const cmpData = cmp?.data ?? null
+  const cmpDim = cmp?.dim ?? false
   const { t } = useTranslation()
   const host = useRef<HTMLDivElement>(null)
   const plot = useRef<uPlot | null>(null)
@@ -166,6 +238,8 @@ export function Plot({ build, data, width, viewport, name, onAxes, overlay, chil
     const ctx: ChartContext = {
       width,
       data,
+      cmp: cmpData,
+      cmpDim,
       viewport,
       onAxes: (shown, catalog) => axes(shown, catalog),
       onCursor: (row, x, time) => {
@@ -199,7 +273,7 @@ export function Plot({ build, data, width, viewport, name, onAxes, overlay, chil
       // of the page needs no reset here: uPlot reports no cursor after the first draw of the new plot.
       crosshair.set(null)
     }
-  }, [build, data, dark, fontReady, crosshair, viewport])
+  }, [build, data, cmpData, cmpDim, dark, fontReady, crosshair, viewport])
   usePlotWidth(plot, width)
   // A chart that moves to another place keeps its plot and takes its new name.
   useEffect(() => {
@@ -216,7 +290,7 @@ export function Plot({ build, data, width, viewport, name, onAxes, overlay, chil
       }}
     >
       <div ref={host} />
-      <TimePill pointer={pointer} data={data} width={width} />
+      <TimePill pointer={pointer} data={data} width={width} vs={cmp?.vs ?? null} />
       {overlay?.(crosshair)}
       {children}
     </div>
@@ -225,7 +299,7 @@ export function Plot({ build, data, width, viewport, name, onAxes, overlay, chil
 
 /** A chart of curves with its side column. */
 export function ValueChart({ chart, index, ...row }: RowProps & { chart: Chart; index: number }) {
-  const { layout, fields, data, width, anyRight, compact, actions, viewport } = row
+  const { layout, fields, data, width, anyRight, compact, actions, viewport, cmp, range } = row
   const { t } = useTranslation()
   const labelOf = useFieldLabel()
   const byId = useMemo(() => new Map(fields.map((f) => [f.id, f])), [fields])
@@ -288,8 +362,13 @@ export function ValueChart({ chart, index, ...row }: RowProps & { chart: Chart; 
               label={labelOf(f, item.id)}
               field={f}
               swatch={{ color: `var(${slotVar(item.slot)})`, dashed: side === 1 }}
-              valueWidth={valueColumn(units)}
-              value={<CursorValue id={item.id} kind={f?.kind ?? "analog"} unit={f?.unit} data={data} />}
+              valueWidth={valueColumn(units, cmp !== null)}
+              value={
+                <>
+                  <CursorValue id={item.id} kind={f?.kind ?? "analog"} unit={f?.unit} data={data} mean={cmp ? range : undefined} />
+                  {cmp && <CompareValue id={item.id} kind={f?.kind ?? "analog"} unit={f?.unit} cmp={cmp} range={range} />}
+                </>
+              }
               // Built when the menu opens: it asks every other chart where the field would land.
               menu={() => moveMenu(item.id)}
               onRemove={() => actions.remove(item.id)}
@@ -318,7 +397,7 @@ export function ValueChart({ chart, index, ...row }: RowProps & { chart: Chart; 
         </>
       }
       plot={
-        <Plot build={build} data={data} width={width} viewport={viewport} name={t("series.chartN", { n: index + 1 })} onAxes={onAxes}>
+        <Plot build={build} data={data} cmp={cmp} width={width} viewport={viewport} name={t("series.chartN", { n: index + 1 })} onAxes={onAxes}>
           {drag.hint && <DropHint fit={drag.hint} />}
         </Plot>
       }

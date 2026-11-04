@@ -15,6 +15,8 @@ interface Props {
   onBack: () => void
   /** Left of the presets, set off by a divider: the switch of the display. */
   lead?: ReactNode
+  /** Directly after Back, in the same group: a control that belongs to the range. */
+  after?: ReactNode
   /** Controls of the page on the right; they wrap into a second line as a whole. */
   children?: ReactNode
 }
@@ -24,7 +26,7 @@ interface Props {
  * range as one field and Back on the left, the page's own controls on the right. It sticks to the
  * top while the page scrolls.
  */
-export function RangeBar({ presets, range, stock, onRange, canBack, onBack, lead, children }: Props) {
+export function RangeBar({ presets, range, stock, onRange, canBack, onBack, lead, after, children }: Props) {
   const { t } = useTranslation()
   const active = matchRange(range, stock, presets)
   return (
@@ -43,7 +45,7 @@ export function RangeBar({ presets, range, stock, onRange, canBack, onBack, lead
           options={presets.map((p) => ({ value: p.key, label: t(`range.presets.${p.key}`) }))}
           onChange={(key) => onRange(presetRange(stock, presets.find((p) => p.key === key)?.span ?? null))}
         />
-        {/* Range and Back stay together when the left side wraps. */}
+        {/* Range and Back stay together when the left side wraps; what follows them is its own element and wraps on its own. */}
         <div className="flex items-center gap-2">
           <RangePopover range={range} stock={stock} active={active} onRange={onRange} />
           <Button
@@ -57,6 +59,7 @@ export function RangeBar({ presets, range, stock, onRange, canBack, onBack, lead
             <Undo2Icon />
           </Button>
         </div>
+        {after}
       </div>
       {children && <div className="ml-auto flex flex-wrap items-center gap-2">{children}</div>}
     </div>

@@ -59,6 +59,11 @@ describe("keepShow", () => {
     )
   })
 
+  it("carries vs, the comparison, with them", () => {
+    expect(keepShow(q("from=5"), q("from=1&vs=31536000")).toString()).toBe("from=5&vs=31536000")
+    expect(keepShow(q("from=5&vs=3"), q("from=1")).toString()).toBe("from=5")
+  })
+
   it("drops what the new search carries if the old has none", () => {
     expect(keepShow(q("from=5&show=stats"), q("from=1")).toString()).toBe("from=5")
   })

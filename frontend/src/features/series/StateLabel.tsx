@@ -15,6 +15,8 @@ interface Props {
   lane: number
   width: number
   compact: boolean
+  /** A comparison is on: a lane of the comparison stands below each lane. */
+  compare: boolean
   /** Layouts of the lanes drawn from sections, by field. */
   drawn: LaneLayouts
 }
@@ -24,7 +26,7 @@ interface Props {
  * crosshair; with sections the one the lane shows there. Like the time
  * pill it floats over the plot and ignores the pointer; only its left edge moves, so nothing flickers.
  */
-export function StateLabel({ pointer, data, id, lane, width, compact, drawn }: Props) {
+export function StateLabel({ pointer, data, id, lane, width, compact, compare, drawn }: Props) {
   const x = useCursor(pointer)
   const row = useCursorRow()
   useLaneLayouts(drawn)
@@ -39,7 +41,7 @@ export function StateLabel({ pointer, data, id, lane, width, compact, drawn }: P
 
   if (!state) return null
   const text = formatState(state.code, state.text)
-  const { top, height } = laneBox(lane, compact)
+  const { top, height } = laneBox(lane, compact, compare)
   return (
     <div
       ref={box}

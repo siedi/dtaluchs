@@ -271,6 +271,8 @@ export const de = {
     min: "min",
     max: "max",
     gap: "Lücke {{duration}}",
+    meanTitle: "Mittel über den sichtbaren Zeitraum",
+    compareValue: "Vergleich",
     // A state lane over the limit of sections falls back to the rows.
     fallback: {
       label: "Verdichtet",
@@ -467,6 +469,19 @@ export const de = {
       distLabel: "Verteilung {{size}}, {{kind}}: Min {{min}}, Median {{median}}, Mittel {{mean}}, Max {{max}} {{unit}}",
       about: "Über die Verteilung von {{size}}, {{kind}}",
     },
+  },
+  compare: {
+    button: "Vergleich",
+    title: "Vergleich mit",
+    dialog: "Vergleich wählen",
+    quick: { year: "Vorjahr", month: "Vormonat", week: "Vorwoche" },
+    footer: "Gleich lang wie der Zeitraum, Uhrzeit {{time}}",
+    off: "Aus",
+    offLabel: "Vergleich ausschalten",
+    noData: "keine Daten im Vergleich",
+    failed: "Vergleich nicht geladen",
+    retry: "Nochmal",
+    chartOnly: "Der Vergleich steht nur im Diagramm.",
   },
   range: {
     label: "Zeitraum",

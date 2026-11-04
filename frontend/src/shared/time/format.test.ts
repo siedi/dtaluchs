@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { isDuration, formatDuration, formatHours, formatNumber, formatValueOrDash, formatTick, formatTime, formatInput, formatMegabytes, formatRunClock, formatRunStamp, formatRunTime, formatShort, parseInput, rangeLimits, readInput, runSeconds } from "./format"
+import { isDuration, formatDuration, formatHours, formatNumber, formatValueOrDash, formatTick, formatTime, formatInput, formatMegabytes, formatRunClock, formatRunStamp, formatRunTime, formatShort, formatDate, formatClock, parseInput, rangeLimits, readInput, runSeconds } from "./format"
 import { MAX_TS } from "./range"
 import { setZone } from "./zone"
 
@@ -25,6 +25,19 @@ describe("times in the zone of the installation", () => {
     setZone("America/New_York")
     expect(formatTime(TS)).toBe("13.10.2026, 03:43")
     expect(formatShort(TS)).toBe("13.10. 03:43")
+  })
+
+  it("shows the date and the clock apart, in the zone", () => {
+    expect(formatDate(TS)).toBe("13.10.2026")
+    expect(formatDate(TS, true)).toBe("13.10.26")
+    expect(formatClock(TS)).toBe("09:43")
+    // 23:30 UTC on 31.12. is 00:30 on 01.01. in Berlin: the zone decides the date.
+    const newYear = Date.UTC(2025, 11, 31, 23, 30) / 1000
+    expect(formatDate(newYear)).toBe("01.01.2026")
+    expect(formatDate(newYear, true)).toBe("01.01.26")
+    expect(formatClock(newYear)).toBe("00:30")
+    setZone("America/New_York")
+    expect(formatClock(TS)).toBe("03:43")
   })
 
   it("shows midnight as 00:00, never 24:00", () => {

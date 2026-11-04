@@ -24,8 +24,11 @@ export function withShow(search: URLSearchParams, show: Show): URLSearchParams {
   return next
 }
 
-/** The parameters that belong to the way of showing and stay when range, layout or view change. */
-export const KEPT = ["show", "when"] as const
+/**
+ * The parameters that belong to the way of showing, not to what is shown, and stay when range, layout or view change:
+ * `show`, `when` and `vs`, the offset of the comparison. A URL with only these has no state of its own.
+ */
+export const KEPT = ["show", "when", "vs"] as const
 
 /** `search` with the kept parameters of `from`. */
 export function keepShow(search: URLSearchParams, from: URLSearchParams): URLSearchParams {

@@ -1,14 +1,23 @@
-# Builds the image for amd64 and arm64 on a version tag and pushes it to the GitHub registry.
-# The app for Home Assistant builds on the image tag named by version in its config.yaml,
-# so the tag without "v" must equal the version in backend/pyproject.toml.
+# Builds the image of each new version on main for amd64 and arm64 and pushes it to the GitHub registry.
+#
+# The version is `version` in backend/pyproject.toml. Is its tag already in the registry, the run ends after one
+# request: a tag is never built twice. Is it missing, the run checks the commit with ./dtaluchs check, builds the
+# image, starts the amd64 build once (healthy, version in /openapi.json), pushes <version> and latest and sets the
+# git tag v<version>. The app for Home Assistant builds on the image tag named by version in its config.yaml.
 name: image
 
 on:
   push:
-    tags: ['v*']
+    branches: [main]
+  workflow_dispatch:
+
+# One build at a time and never cancelled: a cancelled push could leave <version> without latest.
+concurrency:
+  group: image
+  cancel-in-progress: false
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
@@ -17,28 +26,112 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Check version
-        id: version
-        run: |
-          v=$(awk -F'"' '/^\[/ { p = ($0 == "[project]") } p && /^version *=/ { print $2; exit }' backend/pyproject.toml)
-          if [ "${GITHUB_REF_NAME#v}" != "$v" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match version $v in backend/pyproject.toml"
-            exit 1
-          fi
-          echo "version=$v" >> "$GITHUB_OUTPUT"
-          echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/dtaluchs" >> "$GITHUB_OUTPUT"
-
-      # The frontend stage runs on the build platform; only the Python stages need emulation.
-      - uses: docker/setup-qemu-action@v4
-      - uses: docker/setup-buildx-action@v4
-
       - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/build-push-action@v7
+      - name: Version
+        id: version
+        run: |
+          v=$(awk -F'"' '/^\[/ { p = ($0 == "[project]") } p && /^version *=/ { print $2; exit }' backend/pyproject.toml)
+          if [[ ! "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::No version of the form x.y.z in backend/pyproject.toml: $v"
+            exit 1
+          fi
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/dtaluchs"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          # Only "manifest unknown" means missing; any other error stops, so a tag is never pushed twice.
+          if out=$(docker manifest inspect "$image:$v" 2>&1); then
+            echo "$image:$v is already in the registry, nothing to build"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          elif [[ "$out" == *"manifest unknown"* || "$out" == *"no such manifest"* ]]; then
+            echo "$image:$v is missing, building it"
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Cannot read the registry: $out"
+            exit 1
+          fi
+
+      # The same gate as every commit; the image is built only from a green check of this commit.
+      - uses: actions/setup-node@v7
+        if: steps.version.outputs.build == 'true'
+        with:
+          node-version: '24'
+
+      - name: Install uv
+        if: steps.version.outputs.build == 'true'
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Python dependencies
+        if: steps.version.outputs.build == 'true'
+        working-directory: backend
+        run: uv sync --locked
+
+      - name: dtaluchs check
+        if: steps.version.outputs.build == 'true'
+        run: ./dtaluchs check
+
+      # The frontend stage runs on the build platform; only the Python stages need emulation.
+      - uses: docker/setup-qemu-action@v4
+        if: steps.version.outputs.build == 'true'
+      - uses: docker/setup-buildx-action@v4
+        if: steps.version.outputs.build == 'true'
+
+      - name: Build amd64 for the check
+        if: steps.version.outputs.build == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}
+            SOURCE=${{ github.server_url }}/${{ github.repository }}
+          tags: dtaluchs-check:amd64
+
+      # Starts as the image's own user with an empty data folder: healthy within 30 s and the version of this build.
+      - name: Start the image
+        if: steps.version.outputs.build == 'true'
+        env:
+          V: ${{ steps.version.outputs.version }}
+        run: |
+          docker run -d --name dtaluchs-check -p 127.0.0.1:8470:8470 --tmpfs /data:uid=10001,gid=10001 \
+            dtaluchs-check:amd64 > /dev/null
+          health=starting
+          for _ in $(seq 30); do
+            health=$(docker inspect -f '{{.State.Health.Status}}' dtaluchs-check)
+            [[ "$health" == healthy ]] && break
+            sleep 1
+          done
+          got=$(curl -fsS http://127.0.0.1:8470/openapi.json | jq -r .info.version || true)
+          docker logs dtaluchs-check
+          docker rm -f dtaluchs-check > /dev/null
+          [[ "$health" == healthy ]] || { echo "::error::Image not healthy within 30 s: $health"; exit 1; }
+          [[ "$got" == "$V" ]] || { echo "::error::/openapi.json reports version $got, expected $V"; exit 1; }
+
+      # Asks again right before the push: another run may have pushed the tag during the check.
+      - name: Still missing
+        id: missing
+        if: steps.version.outputs.build == 'true'
+        env:
+          REF: ${{ steps.version.outputs.image }}:${{ steps.version.outputs.version }}
+        run: |
+          if docker manifest inspect "$REF" > /dev/null 2>&1; then
+            echo "$REF was pushed in the meantime, no push"
+            echo "push=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "push=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Builds again with the cache of the amd64 build above.
+      - name: Push
+        if: steps.missing.outputs.push == 'true'
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -49,3 +142,15 @@ jobs:
           tags: |
             ${{ steps.version.outputs.image }}:${{ steps.version.outputs.version }}
             ${{ steps.version.outputs.image }}:latest
+
+      # Also without a build: sets the tag a failed earlier run left out.
+      - name: Git tag
+        env:
+          TAG: v${{ steps.version.outputs.version }}
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" > /dev/null; then
+            echo "$TAG already exists"
+          else
+            git tag "$TAG" "$GITHUB_SHA"
+            git push origin "refs/tags/$TAG"
+          fi

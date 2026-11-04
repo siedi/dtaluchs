@@ -36,6 +36,11 @@ describe("laneBox", () => {
     expect(laneBox(0, true).top).toBe(8 + LANE_LABEL + LANE_GAP / 2)
     expect(laneBox(1, true).top - laneBox(0, true).top).toBe(LANE + LANE_GAP + LANE_LABEL)
   })
+  it("keeps the lane in place with a comparison lane below it, the rows 12 px further apart", () => {
+    expect(laneBox(0, false, true)).toEqual(laneBox(0, false))
+    expect(laneBox(1, false, true).top - laneBox(0, false, true).top).toBe(36)
+    expect(laneBox(1, true, true).top - laneBox(0, true, true).top).toBe(52)
+  })
 })
 
 describe("stateUnder", () => {

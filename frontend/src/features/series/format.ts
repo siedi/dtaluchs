@@ -40,7 +40,11 @@ export function columnName(label: string, unit: string | null): string {
   return unit && !isDuration(unit) ? `${label} [${unit}]` : label
 }
 
-/** Width of the value column of the side column: a duration up to `23 h 59 min` needs more than a number. */
-export function valueColumn(units: readonly string[]): string {
-  return units.some(isDuration) ? "6.2em" : "4.4em"
+/**
+ * Width of the value column of the side column: a duration up to `23 h 59 min` needs more than a number. With a comparison
+ * two values stand side by side, the column takes both and a gap of 0.5em.
+ */
+export function valueColumn(units: readonly string[], compare = false): string {
+  const one = units.some(isDuration) ? 6.2 : 4.4
+  return compare ? `${2 * one + 0.5}em` : `${one}em`
 }

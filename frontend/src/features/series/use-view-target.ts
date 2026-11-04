@@ -30,7 +30,7 @@ export function useViewTarget(params: URLSearchParams, setParams: SetURLSearchPa
   const { t } = useTranslation()
   const views = useViews()
   const vid = params.get("v")
-  // `show` and `when` say how to show, not what: alone they leave the page "without a state".
+  // `show`, `when` and `vs` say how to show, not what: alone they leave the page "without a state".
   const bare = [...params.keys()].every((k) => (KEPT as readonly string[]).includes(k))
   const viewOnly = vid !== null && !params.has("p") && !params.has("s")
   const list = views.data?.views
@@ -42,6 +42,7 @@ export function useViewTarget(params: URLSearchParams, setParams: SetURLSearchPa
     [stock, fields],
   )
   useEffect(() => {
+    // Opening a view keeps the way of showing and the comparison: they are no part of the view.
     if (target) setParams(keepShow(viewSearch(target), params), { replace: true })
     else if (viewOnly && views.isSuccess) {
       toast.error(t("views.notFound"))

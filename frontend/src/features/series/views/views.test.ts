@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
+import { keepShow } from "@/shared/show/show"
 import { DAY, presetRange } from "@/shared/time/range"
 import type { Layout } from "../types"
+import { searchOf } from "../use-view-target"
 import type { View } from "./types"
 import { isChanged, rangeOfView, savedRange, unsavedChange } from "./views"
 
@@ -73,5 +75,21 @@ describe("unsavedChange", () => {
     expect(unsavedChange(true, true)).toBe(true)
     expect(unsavedChange(true, false)).toBe(false)
     expect(unsavedChange(false, true)).toBe(false)
+  })
+})
+
+describe("the comparison offset and views", () => {
+  // `vs` is no part of a view: neither a saved range nor the test for "geändert" takes it.
+  it("a view and its range carry no vs, so saving and the test for a change cannot see it", () => {
+    expect(Object.keys(savedRange(presetRange(STOCK, 2 * DAY), STOCK, true))).toEqual(["preset"])
+    expect(Object.keys(savedRange({ from: 1000, to: 2000 }, STOCK, false))).toEqual(["from", "to"])
+    expect(isChanged(VIEW, LAYOUT, presetRange(STOCK, 2 * DAY), STOCK, FIELDS)).toBe(false)
+  })
+
+  it("the search of a loaded view keeps the vs of the page", () => {
+    const view = searchOf(rangeOfView(VIEW.range, STOCK), LAYOUT, VIEW.id)
+    expect(view.has("vs")).toBe(false)
+    expect(keepShow(view, new URLSearchParams("vs=31536000&from=1")).get("vs")).toBe("31536000")
+    expect(keepShow(view, new URLSearchParams("from=1")).has("vs")).toBe(false)
   })
 })

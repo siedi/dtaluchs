@@ -1,3 +1,4 @@
+import { cn } from "cn"
 import { useLayoutEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import { useCursor, type CursorStore } from "@/shared/chart/cursor"
@@ -10,6 +11,8 @@ interface Props {
   pointer: CursorStore
   data: SeriesResponse
   width: number
+  /** Offset of the comparison in seconds; its time stands under that of the main range. */
+  vs?: number | null
 }
 
 /**
@@ -17,13 +20,13 @@ interface Props {
  * the time itself, not that of a row. It floats over the axis, so
  * nothing moves when it comes or goes. Only the pill of the chart under the pointer follows the time.
  */
-export function TimePill({ pointer, data, width }: Props) {
+export function TimePill({ pointer, data, width, vs }: Props) {
   const x = useCursor(pointer)
   if (x == null) return null
-  return <Pill x={x} data={data} width={width} />
+  return <Pill x={x} data={data} width={width} vs={vs} />
 }
 
-function Pill({ x, data, width }: Omit<Props, "pointer"> & { x: number }) {
+function Pill({ x, data, width, vs }: Omit<Props, "pointer"> & { x: number }) {
   const { t } = useTranslation()
   const time = useCursorTime()
   const box = useRef<HTMLDivElement>(null)
@@ -41,10 +44,13 @@ function Pill({ x, data, width }: Omit<Props, "pointer"> & { x: number }) {
   return (
     <div
       ref={box}
-      className="bg-foreground text-background pointer-events-none absolute bottom-0 z-[4] rounded-md px-2 text-xs whitespace-nowrap tabular-nums"
+      className={cn("bg-foreground text-background pointer-events-none absolute bottom-0 z-[4] rounded-md px-2 text-xs whitespace-nowrap tabular-nums", vs != null && "grid")}
     >
-      {formatTime(ts)}
-      {gap ? `, ${t("series.gap", { duration: formatDuration(gap.end_ts - gap.start_ts) })}` : ""}
+      <span>
+        {formatTime(ts)}
+        {gap ? `, ${t("series.gap", { duration: formatDuration(gap.end_ts - gap.start_ts) })}` : ""}
+      </span>
+      {vs != null && <span className="opacity-70">{formatTime(ts - vs)}</span>}
     </div>
   )
 }

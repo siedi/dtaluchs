@@ -26,8 +26,9 @@ function runs(png, x, ground) {
  * The lanes of the signal area from the pixels: `{ lanes: [{ top, bottom }], pitch }` in CSS pixels from the top of
  * the section (`pitch`: from lane to lane, with one lane its height plus the gap above it twice). The ground is the colour at the top of the clip, above the first lane. Throws when the columns do not
  * agree, when the ground is not the same in them, or when the number of lanes differs from the rows of the side column.
+ * With `compare` each lane has the lane of the comparison below it, given as `cmpLanes`.
  */
-export async function laneGeometry(page) {
+export async function laneGeometry(page, { compare = false } = {}) {
   const section = page.locator('section[aria-label="Signale"]')
   await section.scrollIntoViewIfNeeded()
   await page.mouse.move(0, 0) // no cursor line over the plot
@@ -53,32 +54,40 @@ export async function laneGeometry(page) {
   const { runs: found } = JSON.parse(best)
   // device pixels to CSS pixels from the top of the section; the clip begins at an integer CSS pixel
   const css = (v) => (v / g.dpr + y0 - g.sectionTop)
-  const lanes = found.map(([a, b]) => ({ top: css(a), bottom: css(b) }))
-  if (lanes.length !== g.rows) throw new Error(`${lanes.length} Spuren in den Pixeln gegen ${g.rows} Zeilen der Seitenspalte: ${JSON.stringify(lanes)}`)
+  const all = found.map(([a, b]) => ({ top: css(a), bottom: css(b) }))
+  const per = compare ? 2 : 1
+  if (all.length !== per * g.rows) throw new Error(`${all.length} Spuren in den Pixeln gegen ${g.rows} Zeilen der Seitenspalte${compare ? " mit Vergleich" : ""}: ${JSON.stringify(all)}`)
+  const lanes = all.filter((_, i) => i % per === 0)
+  const cmpLanes = compare ? all.filter((_, i) => i % 2 === 1) : []
   const plotTop = g.top - g.sectionTop
   // One lane has no neighbour to measure the pitch from: its height plus the gap, which is twice the distance from the top
   // of the plot to the lane (the border above the first lane is half a gap away, as in `laneBorders`).
   const pitch = lanes.length > 1 ? lanes[1].top - lanes[0].top : lanes.length === 1 ? lanes[0].bottom - lanes[0].top + 2 * (lanes[0].top - plotTop) : null
-  return { lanes, pitch, plotTop }
+  return { lanes, cmpLanes, pitch, plotTop }
 }
 
 /**
  * Per lane at 1280 px: the middle of its row in the side column and the middle of the lane in the pixels, in CSS pixels
- * from the top of the section, with the height of the row and of the lane.
+ * from the top of the section, with the height of the row and of the lane. With `compare` the row is higher than 24 px
+ * and its name stands at the top: `row` is the middle of the name, `cmp` the lane of the comparison below.
  */
-export async function laneOffsets(page) {
-  const geometry = await laneGeometry(page)
+export async function laneOffsets(page, { compare = false } = {}) {
+  const geometry = await laneGeometry(page, { compare })
   const rows = await page.evaluate(() => {
     const s = document.querySelector('section[aria-label="Signale"]')
     const top = s.getBoundingClientRect().top
     return [...s.querySelectorAll("div.group")].map((e) => {
       const r = e.getBoundingClientRect()
-      return { middle: r.top + r.height / 2 - top, height: r.height }
+      const name = e.querySelector('[role="button"]').getBoundingClientRect()
+      return { top: r.top - top, middle: r.top + r.height / 2 - top, name: name.top + name.height / 2 - top, height: r.height }
     })
   })
   return rows.map((r, i) => {
     const lane = geometry.lanes[i]
-    return { row: +r.middle.toFixed(2), lane: +((lane.top + lane.bottom) / 2).toFixed(2), height: r.height, laneHeight: lane.bottom - lane.top, pitch: geometry.pitch }
+    const row = compare ? r.name : r.middle
+    const out = { row: +row.toFixed(2), lane: +((lane.top + lane.bottom) / 2).toFixed(2), height: r.height, laneHeight: lane.bottom - lane.top, pitch: geometry.pitch }
+    const c = geometry.cmpLanes[i]
+    return c ? { ...out, cmp: { top: +(c.top - r.top).toFixed(2), height: c.bottom - c.top, gap: c.top - lane.bottom } } : out
   })
 }
 

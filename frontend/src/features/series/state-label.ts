@@ -18,10 +18,13 @@ export function labelLeft(x: number, width: number, chartWidth: number): number 
   return Math.min(Math.max(left, 0), Math.max(chartWidth - width, 0))
 }
 
-/** Top and height of lane `n` in the plot, as drawn by the lanes (`drawLanes`): the label covers exactly its own lane. */
-export function laneBox(n: number, compact: boolean): { top: number; height: number } {
+/**
+ * Top and height of lane `n` in the plot, as drawn by the lanes (`drawLanes`): the label covers exactly its own lane,
+ * never the lane of the comparison below it (`compare`).
+ */
+export function laneBox(n: number, compact: boolean, compare = false): { top: number; height: number } {
   const first = compact ? SIGNALS_TOP_COMPACT : SIGNALS_TOP
-  return { top: first + n * laneHeight(compact) + (compact ? LANE_LABEL : 0) + LANE_GAP / 2, height: LANE }
+  return { top: first + n * laneHeight(compact, compare) + (compact ? LANE_LABEL : 0) + LANE_GAP / 2, height: LANE }
 }
 
 /** A state as the lane shows it: its code and its text, null without one. */
